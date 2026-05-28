@@ -1,803 +1,1344 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { 
-  TrendingUp, TrendingDown, Minus, Bell, AlertCircle, 
-  ChevronDown, Calendar, Package, CreditCard,
-  BarChart3, PieChart, CheckCircle2, Presentation, Minimize,
-  RefreshCw, Layers, Clock, Star, AlertTriangle, X
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P.&O. Executive Dashboard</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Configuration for Custom Theme Colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              50: '#f8fafc',
+              100: '#eef2f9',
+              500: '#444696',
+              800: '#2a2b66',
+              900: '#1f204d',
+              dark: '#35367a',
+              border: '#3a3b86'
+            },
+            periwinkle: {
+              DEFAULT: '#c2d3ef',
+              dark: '#a6bade'
+            }
+          },
+          fontFamily: {
+            prompt: ['Prompt', 'sans-serif'],
+            georgia: ['Georgia', 'Times New Roman', 'serif']
+          }
+        }
+      }
+    }
+  </script>
 
-// ==========================================
-// TAB 1: SUMMARY (หน้าจอภาพรวมสถานะทางการเงิน)
-// ==========================================
-const SummaryTab = ({ setActiveChartIdx, activeChartIdx }) => (
-  <div className="space-y-10 animate-in fade-in duration-500">
-    {/* KPI Cards - 3 กล่องขยายเต็มสัดส่วน */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* 1. รายได้รวม */}
-      <div className="bg-white p-5 border border-slate-300 shadow-sm rounded-sm">
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-sm font-bold text-[#2a2b66]">รายได้รวม</p>
-          <BarChart3 size={18} className="text-[#a6bade]" />
+  <!-- Google Fonts (Prompt & Noto Sans Thai) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    
+    /* Custom Scrollbar for Lists & Modal Table */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #c2d3ef;
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #a6bade;
+    }
+  </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 selection:bg-[#c2d3ef] min-h-screen pb-12">
+
+  <!-- Wrapper for Fullscreen Mode -->
+  <div id="dashboard-wrapper" class="max-w-[1440px] mx-auto shadow-[0_0_40px_rgba(0,0,0,0.05)] bg-white border-x border-slate-200 min-h-screen mt-4 rounded-t-md overflow-hidden transition-all">
+    
+    <!-- ================= MAIN HEADER SECTION ================= -->
+    <header class="bg-[#2a2b66] text-white px-8 py-8 md:py-10 relative overflow-hidden flex flex-col md:flex-row justify-between items-start w-full gap-6">
+      <!-- Decorative background wave/circle -->
+      <div class="absolute right-0 top-0 w-1/3 h-full bg-[#35367a] rounded-l-full opacity-50 blur-3xl pointer-events-none"></div>
+      
+      <!-- Left: Title & Subtitle -->
+      <div class="relative z-10 flex-shrink-0">
+        <h1 class="text-4xl md:text-[42px] font-normal tracking-wide font-georgia" style="font-family: Georgia, 'Times New Roman', serif;">
+          P.&O. Executive Dashboard
+        </h1>
+        <p class="text-[#c2d3ef] font-medium text-base mt-2">ภาพรวมสุขภาพทางการเงินและผลประกอบการ</p>
+      </div>
+      
+      <!-- Right: Action Section (2-Rows stacked on the right) -->
+      <div class="relative z-10 flex flex-col items-end gap-4 w-full md:w-auto mt-2 md:mt-0">
+        
+        <!-- Row 1: Period Selector & Presentation Switch -->
+        <div class="flex flex-wrap items-center gap-3">
+          
+          <!-- Dropdown Period Selector -->
+          <div class="relative">
+            <button 
+              id="date-btn"
+              class="flex items-center gap-3 bg-white text-[#2a2b66] border border-transparent hover:border-[#a6bade] px-4 h-[38px] rounded-sm transition-all shadow-sm group"
+            >
+              <i data-lucide="calendar" class="w-4 h-4 text-[#2a2b66]/60 group-hover:text-[#2a2b66] transition-colors"></i>
+              <span id="selected-period-text" class="font-bold text-sm whitespace-nowrap text-left min-w-[95px]">พ.ค. 2569</span>
+              <i id="date-chevron" data-lucide="chevron-down" class="w-3.5 h-3.5 text-[#2a2b66]/60 group-hover:text-[#2a2b66] transition-all duration-200"></i>
+            </button>
+
+            <!-- Dropdown Options Menu -->
+            <div 
+              id="date-dropdown" 
+              class="hidden absolute right-0 mt-1 w-full min-w-[185px] bg-white border border-slate-200 shadow-lg py-1 z-50 rounded-sm"
+            >
+              <button onclick="selectPeriod('รวมทั้งปี 2569')" data-period="รวมทั้งปี 2569" class="dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between text-slate-600 hover:bg-slate-50">
+                รวมทั้งปี 2569 <i data-lucide="check-circle-2" class="check-icon w-3.5 h-3.5 text-[#2a2b66] hidden"></i>
+              </button>
+              <button onclick="selectPeriod('พ.ค. 2569')" data-period="พ.ค. 2569" class="dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between bg-[#eef2f9] text-[#2a2b66] font-bold">
+                พ.ค. 2569 <i data-lucide="check-circle-2" class="check-icon w-3.5 h-3.5 text-[#2a2b66]"></i>
+              </button>
+              <button onclick="selectPeriod('เม.ย. 2569')" data-period="เม.ย. 2569" class="dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between text-slate-600 hover:bg-slate-50">
+                เม.ย. 2569 <i data-lucide="check-circle-2" class="check-icon w-3.5 h-3.5 text-[#2a2b66] hidden"></i>
+              </button>
+              <button onclick="selectPeriod('มี.ค. 2569')" data-period="มี.ค. 2569" class="dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between text-slate-600 hover:bg-slate-50">
+                มี.ค. 2569 <i data-lucide="check-circle-2" class="check-icon w-3.5 h-3.5 text-[#2a2b66] hidden"></i>
+              </button>
+              <button onclick="selectPeriod('ก.พ. 2569')" data-period="ก.พ. 2569" class="dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between text-slate-600 hover:bg-slate-50">
+                ก.พ. 2569 <i data-lucide="check-circle-2" class="check-icon w-3.5 h-3.5 text-[#2a2b66] hidden"></i>
+              </button>
+              <button onclick="selectPeriod('ม.ค. 2569')" data-period="ม.ค. 2569" class="dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between text-slate-600 hover:bg-slate-50">
+                ม.ค. 2569 <i data-lucide="check-circle-2" class="check-icon w-3.5 h-3.5 text-[#2a2b66] hidden"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Presentation Button -->
+          <button 
+            id="presentation-btn"
+            class="flex items-center gap-2 bg-[#c2d3ef] hover:bg-white text-[#2a2b66] px-4 h-[38px] rounded-sm transition-all shadow-sm group border border-transparent hover:border-[#a6bade]"
+            title="เปิดโหมดนำเสนอ (Presentation Mode)"
+          >
+            <i data-lucide="presentation" class="w-4 h-4 text-[#2a2b66] group-hover:scale-110 transition-transform"></i>
+            <span class="font-bold text-sm whitespace-nowrap">นำเสนอ</span>
+          </button>
         </div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">฿14.2M</h2>
-        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
-          <span className="flex items-center text-emerald-600 font-bold text-xs">
-            <TrendingUp size={14} className="mr-1" /> +12%
-          </span>
-          <span className="text-xs font-medium text-slate-500">เทียบเดือนก่อน</span>
+
+        <!-- Row 2: Menu Tabs Navigation -->
+        <div class="flex bg-[#1f204d] p-1 rounded-sm border border-[#3a3b86]">
+          <button onclick="switchTab('ภาพรวม')" data-tab="ภาพรวม" class="tab-btn px-5 py-1.5 text-sm font-semibold rounded-sm transition-all duration-200 whitespace-nowrap bg-[#c2d3ef] text-[#2a2b66]">
+            ภาพรวม
+          </button>
+          <button onclick="switchTab('สินค้า')" data-tab="สินค้า" class="tab-btn px-5 py-1.5 text-sm font-semibold rounded-sm transition-all duration-200 whitespace-nowrap text-slate-300 hover:text-white">
+            สินค้า
+          </button>
+          <button onclick="switchTab('กระแสเงินสด')" data-tab="กระแสเงินสด" class="tab-btn px-5 py-1.5 text-sm font-semibold rounded-sm transition-all duration-200 whitespace-nowrap text-slate-300 hover:text-white">
+            กระแสเงินสด
+          </button>
+          <button onclick="switchTab('คาดการณ์')" data-tab="คาดการณ์" class="tab-btn px-5 py-1.5 text-sm font-semibold rounded-sm transition-all duration-200 whitespace-nowrap text-slate-300 hover:text-white">
+            คาดการณ์
+          </button>
         </div>
       </div>
+    </header>
 
-      {/* 2. อัตรากำไรขั้นต้น */}
-      <div className="bg-white p-5 border border-slate-300 shadow-sm rounded-sm">
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-sm font-bold text-[#2a2b66]">อัตรากำไรขั้นต้น (GP)</p>
-          <PieChart size={18} className="text-[#a6bade]" />
-        </div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">41.5%</h2>
-        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
-          <span className="flex items-center text-slate-500 font-bold text-xs">
-            <Minus size={14} className="mr-1" /> คงที่
-          </span>
-          <span className="text-xs font-medium text-slate-500">เทียบเดือนก่อน</span>
-        </div>
-      </div>
-
-      {/* 3. กำไรสุทธิ */}
-      <div className="bg-white p-5 border border-slate-300 shadow-sm rounded-sm">
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-sm font-bold text-[#2a2b66]">กำไรสุทธิ</p>
-          <TrendingUp size={18} className="text-[#a6bade]" />
-        </div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">฿2.1M</h2>
-        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
-          <span className="flex items-center text-rose-600 font-bold text-xs">
-            <TrendingDown size={14} className="mr-1" /> -5%
-          </span>
-          <span className="text-xs font-medium text-slate-500">ต้องติดตาม</span>
-        </div>
-      </div>
+    <!-- ================= SUB-HEADER STRIP ================= -->
+    <div class="bg-[#c2d3ef] text-[#2a2b66] px-8 py-2.5 font-bold text-sm border-b border-[#a6bade] flex justify-between items-center">
+      <span>สำหรับการตรวจสอบสถานะทางการเงินและประสิทธิภาพการดำเนินงานของบริษัท</span>
+      <span class="text-[10px] uppercase tracking-wider font-bold opacity-70">TAB: <span id="sub-header-tab-indicator">ภาพรวม</span></span>
     </div>
 
-    {/* CHARTS SECTION */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* ฝั่งซ้าย: กราฟรายได้เทียบกำไรและค่าใช้จ่าย */}
-      <div className="lg:col-span-2">
-        <div className="flex justify-center mb-6">
-          <h3 className="bg-[#2a2b66] text-white px-6 py-1.5 font-bold text-sm rounded-sm shadow-sm">รายได้เทียบกับกำไรและค่าใช้จ่าย</h3>
-        </div>
+    <!-- ================= DYNAMIC CONTENT AREA ================= -->
+    <div class="p-4 md:p-8">
+      
+      <!-- ================= TAB 1: SUMMARY TAB CONTENT ================= -->
+      <div id="summary-tab-content" class="space-y-10 animate-in fade-in duration-500">
         
-        <div className="flex justify-center gap-6 text-xs font-bold text-slate-600 mb-6">
-          <span className="flex items-center gap-1.5"><div className="w-3 h-3 bg-[#2a2b66] rounded-sm"></div> รายได้</span>
-          <span className="flex items-center gap-1.5"><div className="w-3 h-3 bg-[#a6bade] rounded-sm"></div> กำไร</span>
-          <span className="flex items-center gap-1.5">
-            <div className="w-5 h-px bg-[#728c69] relative flex items-center justify-center">
-              <div className="w-2 h-2 bg-[#728c69] rounded-full"></div>
-            </div> 
-            ค่าใช้จ่าย
-          </span>
+        <!-- KPI Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- 1. Total Revenue -->
+          <div class="bg-white p-5 border border-slate-300 shadow-sm rounded-sm">
+            <div class="flex justify-between items-center mb-2">
+              <p class="text-sm font-bold text-[#2a2b66]">รายได้รวม</p>
+              <i data-lucide="bar-chart-3" class="w-[18px] h-[18px] text-[#a6bade]"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-900 tracking-tight">฿14.2M</h2>
+            <div class="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
+              <span class="flex items-center text-emerald-600 font-bold text-xs">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5 mr-1"></i> +12%
+              </span>
+              <span class="text-xs font-medium text-slate-500">เทียบเดือนก่อน</span>
+            </div>
+          </div>
+
+          <!-- 2. GP Margin -->
+          <div class="bg-white p-5 border border-slate-300 shadow-sm rounded-sm">
+            <div class="flex justify-between items-center mb-2">
+              <p class="text-sm font-bold text-[#2a2b66]">อัตรากำไรขั้นต้น (GP)</p>
+              <i data-lucide="pie-chart" class="w-[18px] h-[18px] text-[#a6bade]"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-900 tracking-tight">41.5%</h2>
+            <div class="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
+              <span class="flex items-center text-slate-500 font-bold text-xs">
+                <i data-lucide="minus" class="w-3.5 h-3.5 mr-1"></i> คงที่
+              </span>
+              <span class="text-xs font-medium text-slate-500">เทียบเดือนก่อน</span>
+            </div>
+          </div>
+
+          <!-- 3. Net Profit -->
+          <div class="bg-white p-5 border border-slate-300 shadow-sm rounded-sm">
+            <div class="flex justify-between items-center mb-2">
+              <p class="text-sm font-bold text-[#2a2b66]">กำไรสุทธิ</p>
+              <i data-lucide="trending-up" class="w-[18px] h-[18px] text-[#a6bade]"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-900 tracking-tight">฿2.1M</h2>
+            <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100" style="display: flex; align-items: center; gap: 0.375rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #f1f5f9;">
+              <span class="flex items-center text-rose-600 font-bold text-xs">
+                <i data-lucide="trending-down" class="w-3.5 h-3.5 mr-1"></i> -5%
+              </span>
+              <span class="text-xs font-medium text-slate-500">ต้องติดตาม</span>
+            </div>
+          </div>
         </div>
+
+        <!-- Charts Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          <!-- Left: Revenue vs Profit Combo Chart -->
+          <div class="lg:col-span-2">
+            <div class="flex justify-center mb-6">
+              <h3 class="bg-[#2a2b66] text-white px-6 py-1.5 font-bold text-sm rounded-sm shadow-sm">รายได้เทียบกับกำไรและค่าใช้จ่าย</h3>
+            </div>
+            
+            <div class="flex justify-center gap-6 text-xs font-bold text-slate-600 mb-6">
+              <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-[#2a2b66] rounded-sm"></div> รายได้</span>
+              <span class="flex items-center gap-1.5"><div className="w-3 h-3 bg-[#a6bade] rounded-sm" style="width: 0.75rem; height: 0.75rem; background-color: #a6bade; border-radius: 0.125rem;"></div> กำไร</span>
+              <span class="flex items-center gap-1.5">
+                <div class="w-5 h-px bg-[#728c69] relative flex items-center justify-center">
+                  <div class="w-2 h-2 bg-[#728c69] rounded-full"></div>
+                </div> 
+                ค่าใช้จ่าย
+              </span>
+            </div>
+            
+            <!-- Graphic Container -->
+            <div class="relative w-full px-2">
+              <div class="h-[260px] w-full relative">
+                <!-- Grid Lines -->
+                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  <div class="w-full h-px bg-slate-200"></div>
+                  <div class="w-full h-px bg-slate-200"></div>
+                  <div class="w-full h-px bg-slate-200"></div>
+                  <div class="w-full h-px bg-slate-200"></div>
+                  <div class="w-full h-px bg-slate-200"></div>
+                </div>
+
+                <!-- SVG Expense Line -->
+                <div class="absolute inset-0 pointer-events-none z-20">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full overflow-visible">
+                    <path 
+                      d="M 8.33 60 L 25 55 L 41.67 58 L 58.33 50 L 75 40 L 91.67 35" 
+                      fill="none" 
+                      stroke="#728c69" 
+                      stroke-width="1.5" 
+                      vector-effect="non-scaling-stroke"
+                    />
+                  </svg>
+                </div>
+
+                <!-- Bar columns and Hover Tooltips -->
+                <div class="absolute inset-0 flex items-end justify-between">
+                  <!-- Dec column -->
+                  <div onmouseenter="showSummaryTooltip(0)" class="flex flex-col items-center justify-end h-full flex-1 z-10 group cursor-pointer relative">
+                    <div id="summary-tooltip-0" class="opacity-0 translate-y-2 pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-[#2a2b66] text-white text-xs font-bold px-3 py-1.5 rounded-sm shadow-md whitespace-nowrap z-50 transition-all duration-200 border border-[#444696]">
+                      รายได้ ฿7.5M
+                      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#2a2b66] border-b border-r border-[#444696] rotate-45"></div>
+                    </div>
+                    <div class="flex items-end justify-center gap-1 w-full h-full relative">
+                      <div class="w-1/3 max-w-[28px] bg-[#2a2b66] group-hover:opacity-90 transition-all" style="height: 50%;"></div>
+                      <div class="w-1/3 max-w-[28px] bg-[#a6bade] group-hover:opacity-90 transition-all" style="height: 10%;"></div>
+                      <div class="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#728c69] rounded-full z-30 transition-transform group-hover:scale-125" style="bottom: calc(40% - 5px);"></div>
+                    </div>
+                  </div>
+
+                  <!-- Jan column -->
+                  <div onmouseenter="showSummaryTooltip(1)" class="flex flex-col items-center justify-end h-full flex-1 z-10 group cursor-pointer relative">
+                    <div id="summary-tooltip-1" class="opacity-0 translate-y-2 pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-[#2a2b66] text-white text-xs font-bold px-3 py-1.5 rounded-sm shadow-md whitespace-nowrap z-50 transition-all duration-200 border border-[#444696]">
+                      รายได้ ฿8.2M
+                      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#2a2b66] border-b border-r border-[#444696] rotate-45"></div>
+                    </div>
+                    <div class="flex items-end justify-center gap-1 w-full h-full relative">
+                      <div class="w-1/3 max-w-[28px] bg-[#2a2b66] group-hover:opacity-90 transition-all" style="height: 55%;"></div>
+                      <div class="w-1/3 max-w-[28px] bg-[#a6bade] group-hover:opacity-90 transition-all" style="height: 10%;"></div>
+                      <div class="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#728c69] rounded-full z-30 transition-transform group-hover:scale-125" style="bottom: calc(45% - 5px);"></div>
+                    </div>
+                  </div>
+
+                  <!-- Feb column -->
+                  <div onmouseenter="showSummaryTooltip(2)" class="flex flex-col items-center justify-end h-full flex-1 z-10 group cursor-pointer relative">
+                    <div id="summary-tooltip-2" class="opacity-0 translate-y-2 pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-[#2a2b66] text-white text-xs font-bold px-3 py-1.5 rounded-sm shadow-md whitespace-nowrap z-50 transition-all duration-200 border border-[#444696]">
+                      รายได้ ฿9.7M
+                      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#2a2b66] border-b border-r border-[#444696] rotate-45"></div>
+                    </div>
+                    <div class="flex items-end justify-center gap-1 w-full h-full relative">
+                      <div class="w-1/3 max-w-[28px] bg-[#2a2b66] group-hover:opacity-90 transition-all" style="height: 65%;"></div>
+                      <div class="w-1/3 max-w-[28px] bg-[#a6bade] group-hover:opacity-90 transition-all" style="height: 23%;"></div>
+                      <div class="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#728c69] rounded-full z-30 transition-transform group-hover:scale-125" style="bottom: calc(42% - 5px);"></div>
+                    </div>
+                  </div>
+
+                  <!-- Mar column -->
+                  <div onmouseenter="showSummaryTooltip(3)" class="flex flex-col items-center justify-end h-full flex-1 z-10 group cursor-pointer relative">
+                    <div id="summary-tooltip-3" class="opacity-0 translate-y-2 pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-[#2a2b66] text-white text-xs font-bold px-3 py-1.5 rounded-sm shadow-md whitespace-nowrap z-50 transition-all duration-200 border border-[#444696]">
+                      รายได้ ฿12.0M
+                      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#2a2b66] border-b border-r border-[#444696] rotate-45"></div>
+                    </div>
+                    <div class="flex items-end justify-center gap-1 w-full h-full relative">
+                      <div class="w-1/3 max-w-[28px] bg-[#2a2b66] group-hover:opacity-90 transition-all" style="height: 80%;"></div>
+                      <div class="w-1/3 max-w-[28px] bg-[#a6bade] group-hover:opacity-90 transition-all" style="height: 30%;"></div>
+                      <div class="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#728c69] rounded-full z-30 transition-transform group-hover:scale-125" style="bottom: calc(50% - 5px);"></div>
+                    </div>
+                  </div>
+
+                  <!-- Apr column -->
+                  <div onmouseenter="showSummaryTooltip(4)" class="flex flex-col items-center justify-end h-full flex-1 z-10 group cursor-pointer relative">
+                    <div id="summary-tooltip-4" class="opacity-0 translate-y-2 pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-[#2a2b66] text-white text-xs font-bold px-3 py-1.5 rounded-sm shadow-md whitespace-nowrap z-50 transition-all duration-200 border border-[#444696]">
+                      รายได้ ฿11.2M
+                      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#2a2b66] border-b border-r border-[#444696] rotate-45"></div>
+                    </div>
+                    <div class="flex items-end justify-center gap-1 w-full h-full relative">
+                      <div class="w-1/3 max-w-[28px] bg-[#2a2b66] group-hover:opacity-90 transition-all" style="height: 75%;"></div>
+                      <div class="w-1/3 max-w-[28px] bg-[#a6bade] group-hover:opacity-90 transition-all" style="height: 15%;"></div>
+                      <div class="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#728c69] rounded-full z-30 transition-transform group-hover:scale-125" style="bottom: calc(60% - 5px);"></div>
+                    </div>
+                  </div>
+
+                  <!-- May column (DEFAULT SHOWN) -->
+                  <div onmouseenter="showSummaryTooltip(5)" class="flex flex-col items-center justify-end h-full flex-1 z-10 group cursor-pointer relative">
+                    <div id="summary-tooltip-5" class="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-[#2a2b66] text-white text-xs font-bold px-3 py-1.5 rounded-sm shadow-md whitespace-nowrap z-50 transition-all duration-200 border border-[#444696]">
+                      รายได้ ฿14.2M
+                      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#2a2b66] border-b border-r border-[#444696] rotate-45"></div>
+                    </div>
+                    <div class="flex items-end justify-center gap-1 w-full h-full relative">
+                      <div class="w-1/3 max-w-[28px] bg-[#2a2b66] group-hover:opacity-90 transition-all" style="height: 95%;"></div>
+                      <div class="w-1/3 max-w-[28px] bg-[#a6bade] group-hover:opacity-90 transition-all" style="height: 30%;"></div>
+                      <div class="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#728c69] rounded-full z-30 transition-transform group-hover:scale-125" style="bottom: calc(65% - 5px);"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- X-Axis Labels -->
+              <div class="flex justify-between mt-3 border-t border-slate-300 pt-3">
+                <div class="flex-1 text-center"><span class="text-xs text-slate-500 font-medium">ธ.ค.</span></div>
+                <div class="flex-1 text-center"><span class="text-xs text-slate-500 font-medium">ม.ค.</span></div>
+                <div class="flex-1 text-center"><span class="text-xs text-slate-500 font-medium">ก.พ.</span></div>
+                <div class="flex-1 text-center"><span class="text-xs text-slate-500 font-medium">มี.ค.</span></div>
+                <div class="flex-1 text-center"><span class="text-xs text-slate-500 font-medium">เม.ย.</span></div>
+                <div class="flex-1 text-center"><span class="text-xs text-[#2a2b66] font-bold">พ.ค.</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Expense Breakdown Donut Chart -->
+          <div>
+            <div class="flex justify-center mb-6">
+              <h3 class="bg-[#2a2b66] text-white px-6 py-1.5 font-bold text-sm rounded-sm shadow-sm">สัดส่วนค่าใช้จ่าย</h3>
+            </div>
+            <div class="flex flex-col items-center mt-8">
+              <div class="relative w-52 h-52 mb-8">
+                <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
+                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" stroke-width="20" />
+                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#2a2b66" stroke-width="20" stroke-dasharray="25 75" pathLength="100" />
+                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#a6bade" stroke-width="20" stroke-dasharray="30 70" stroke-dashoffset="-25" pathLength="100" />
+                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#cbd5e1" stroke-width="20" stroke-dasharray="45 55" stroke-dashoffset="-55" pathLength="100" />
+                </svg>
+                <div class="absolute top-[25%] -left-[10%] text-[9px] font-bold text-slate-700 text-right leading-tight">ต้นทุนขาย<br/>45%</div>
+                <div class="absolute top-[25%] -right-[10%] text-[9px] font-bold text-slate-700 text-left leading-tight">การตลาด<br/>25%</div>
+                <div class="absolute -bottom-[5%] left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-700 text-center leading-tight">เงินเดือน/บริหาร<br/>30%</div>
+              </div>
+              
+              <!-- Color legend description -->
+              <div class="w-full space-y-2 mt-2 px-4">
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-0">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-[#cbd5e1]"></div>
+                    <span class="font-medium text-slate-700 text-xs">ต้นทุนขาย</span>
+                  </div>
+                  <span class="font-bold text-[#2a2b66] text-sm">45%</span>
+                </div>
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-0">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-[#2a2b66]"></div>
+                    <span class="font-medium text-slate-700 text-xs">การตลาด</span>
+                  </div>
+                  <span class="font-bold text-[#2a2b66] text-sm">25%</span>
+                </div>
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-0">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-[#a6bade]"></div>
+                    <span class="font-medium text-slate-700 text-xs">เงินเดือนและบริหาร</span>
+                  </div>
+                  <span class="font-bold text-[#2a2b66] text-sm">30%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-slate-200 mt-2 mb-2" />
+
+        <!-- ================= TAB 1 BOTTOM SECTION ================= -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4">
+          <!-- Top Products List Table -->
+          <div class="lg:col-span-2">
+            <div class="flex justify-between items-center mb-4 border-b-2 border-[#2a2b66] pb-2">
+              <h3 class="text-base font-bold text-[#2a2b66]">สินค้าขายดีตามอัตรากำไรขั้นต้น</h3>
+            </div>
+            
+            <div class="space-y-0">
+              <div class="flex items-center gap-4 py-2 bg-[#f8fafc] border-b border-slate-300 px-2">
+                <div class="w-8 text-xs font-bold text-slate-500">ลำดับ</div>
+                <div class="w-48 text-xs font-bold text-slate-500">ชื่อสินค้า</div>
+                <div class="flex-1 text-xs font-bold text-slate-500 text-center">สัดส่วนกำไร</div>
+                <div class="w-16 text-right text-xs font-bold text-slate-500">GP%</div>
+              </div>
+
+              <!-- Product list item loops -->
+              <div class="flex items-center gap-4 py-3 px-2 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <div class="w-8 text-sm font-bold text-slate-400">01</div>
+                <div class="w-48 text-xs font-bold text-[#2a2b66] truncate">HARROGATE ORIGINAL 50 g</div>
+                <div class="flex-1 h-3 bg-[#eef2f9] border border-[#c2d3ef] rounded-sm overflow-hidden flex">
+                  <div class="h-full bg-[#a6bade] transition-all" style="width: 85%;"></div>
+                </div>
+                <div class="w-16 text-right font-bold text-[#2a2b66] text-sm">65%</div>
+              </div>
+
+              <div class="flex items-center gap-4 py-3 px-2 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <div class="w-8 text-sm font-bold text-slate-400">02</div>
+                <div class="w-48 text-xs font-bold text-[#2a2b66] truncate">NEOTONE SENSITIVE 30ML</div>
+                <div class="flex-1 h-3 bg-[#eef2f9] border border-[#c2d3ef] rounded-sm overflow-hidden flex">
+                  <div class="h-full bg-[#a6bade] transition-all" style="width: 75%;"></div>
+                </div>
+                <div class="w-16 text-right font-bold text-[#2a2b66] text-sm">58%</div>
+              </div>
+
+              <div class="flex items-center gap-4 py-3 px-2 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <div class="w-8 text-sm font-bold text-slate-400">03</div>
+                <div class="w-48 text-xs font-bold text-[#2a2b66] truncate">GLYCO-A FOAMER FLACON 100ML</div>
+                <div class="flex-1 h-3 bg-[#eef2f9] border border-[#c2d3ef] rounded-sm overflow-hidden flex">
+                  <div class="h-full bg-[#a6bade] transition-all" style="width: 50%;"></div>
+                </div>
+                <div class="w-16 text-right font-bold text-[#2a2b66] text-sm">42%</div>
+              </div>
+
+              <div class="flex items-center gap-4 py-3 px-2 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <div class="w-8 text-sm font-bold text-slate-400">04</div>
+                <div class="w-48 text-xs font-bold text-[#2a2b66] truncate">UVEBLOCK SPF 50+ INVISIBLE FLUID 40ml</div>
+                <div class="flex-1 h-3 bg-[#eef2f9] border border-[#c2d3ef] rounded-sm overflow-hidden flex">
+                  <div class="h-full bg-[#a6bade] transition-all" style="width: 40%;"></div>
+                </div>
+                <div class="w-16 text-right font-bold text-[#2a2b66] text-sm">35%</div>
+              </div>
+
+              <div class="flex items-center gap-4 py-3 px-2 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <div class="w-8 text-sm font-bold text-slate-400">05</div>
+                <div class="w-48 text-xs font-bold text-[#2a2b66] truncate">GENESKIN LIFT LIFTING SERUM 28ml</div>
+                <div class="flex-1 h-3 bg-[#eef2f9] border border-[#c2d3ef] rounded-sm overflow-hidden flex">
+                  <div class="h-full bg-[#a6bade] transition-all" style="width: 15%;"></div>
+                </div>
+                <div class="w-16 text-right font-bold text-[#2a2b66] text-sm">15%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Required List -->
+          <div>
+            <div class="flex justify-between items-center mb-4 border-b-2 border-rose-600 pb-2">
+              <h3 class="text-base font-bold text-rose-700">สิ่งที่ต้องดำเนินการด่วน</h3>
+            </div>
+            
+            <div class="space-y-4">
+              <!-- AR Aging -->
+              <div class="border border-rose-200 bg-rose-50 p-4 rounded-sm border-l-4 border-l-rose-600">
+                <div class="flex items-center gap-3 mb-2">
+                  <i data-lucide="credit-card" class="w-[18px] h-[18px] text-rose-600"></i>
+                  <h4 class="font-bold text-rose-900 text-sm">ลูกหนี้ค้างชำระ &gt;60 วัน</h4>
+                </div>
+                <div class="flex items-end justify-between mt-2">
+                  <p class="text-xs text-rose-700 font-medium">ยอดค้างชำระรวม</p>
+                  <p class="text-2xl font-bold text-rose-700 leading-none">฿1.2M</p>
+                </div>
+              </div>
+
+              <!-- Near Expiry -->
+              <div class="border border-amber-200 bg-amber-50 p-4 rounded-sm border-l-4 border-l-amber-500">
+                <div class="flex items-center gap-3 mb-2">
+                  <i data-lucide="package" class="w-[18px] h-[18px] text-amber-600"></i>
+                  <h4 class="font-bold text-amber-900 text-sm">สินค้าใกล้หมดอายุ</h4>
+                </div>
+                <div class="flex items-end justify-between mt-2">
+                  <p class="text-xs text-amber-700 font-medium">จำนวนที่ได้รับผลกระทบ</p>
+                  <p class="text-2xl font-bold text-amber-600 leading-none">45 <span class="text-sm font-semibold text-amber-700">รายการ</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= TAB 2: PRODUCT & CHANNEL INTELLIGENCE ================= -->
+      <div id="product-tab-content" class="hidden space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
-        <div className="relative w-full px-2">
-          <div className="h-[260px] w-full relative">
-            {/* เส้นตาราง Grid Lines */}
-            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-              {[1,2,3,4,5].map(i => <div key={i} className="w-full h-px bg-slate-200"></div>)}
+        <!-- Row 1: KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Card 1 -->
+          <div class="bg-white p-5 border border-slate-300 shadow-sm rounded-sm flex flex-col justify-between group hover:border-[#a6bade] transition-colors">
+            <div class="flex justify-between items-center mb-2">
+              <p class="text-sm font-bold text-[#2a2b66]">สัดส่วนรายได้ Top 10</p>
+              <div class="p-1.5 bg-[#f0f4f8] rounded-sm text-[#2a2b66]"><i data-lucide="pie-chart" class="w-4 h-4"></i></div>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-900 tracking-tight">68.5%</h2>
+            <div class="flex items-center gap-1 mt-3 text-xs font-medium text-slate-500">จากสินค้าทั้งหมด 142 รายการ</div>
+          </div>
+          <!-- Card 2 -->
+          <div class="bg-white p-5 border border-slate-300 shadow-sm rounded-sm flex flex-col justify-between group hover:border-[#a6bade] transition-colors">
+            <div class="flex justify-between items-center mb-2">
+              <p class="text-sm font-bold text-[#2a2b66]">อัตรากำไรขั้นต้นเฉลี่ย</p>
+              <div class="p-1.5 bg-[#f0f4f8] rounded-sm text-[#2a2b66]"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-900 tracking-tight">42.5%</h2>
+            <div class="flex items-center gap-1 mt-3 text-xs font-medium text-emerald-600">
+              <i data-lucide="trending-up" class="w-3 h-3"></i> +1.2% เทียบไตรมาสก่อน
+            </div>
+          </div>
+          <!-- Card 3 -->
+          <div class="bg-white p-5 border border-slate-300 shadow-sm rounded-sm flex flex-col justify-between group hover:border-[#a6bade] transition-colors">
+            <div class="flex justify-between items-center mb-2">
+              <p class="text-sm font-bold text-[#2a2b66]">อัตราหมุนเวียนสินค้า</p>
+              <div class="p-1.5 bg-[#f0f4f8] rounded-sm text-[#2a2b66]"><i data-lucide="refresh-cw" class="w-4 h-4"></i></div>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <h2 class="text-3xl font-bold text-slate-900 tracking-tight">4.2</h2>
+              <span class="text-sm font-bold text-slate-500">รอบ/ปี</span>
+            </div>
+            <div class="flex items-center gap-1 mt-3 text-xs font-medium text-slate-500">ค่าเฉลี่ยย้อนหลัง 6 เดือน</div>
+          </div>
+          <!-- Card 4 -->
+          <div class="bg-[#2a2b66] text-white p-5 border border-[#1f204d] shadow-sm rounded-sm flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 opacity-10"><i data-lucide="alert-triangle" class="w-20 h-20"></i></div>
+            <div class="flex justify-between items-center mb-2 relative z-10">
+              <p class="text-sm font-bold text-[#c2d3ef]">สินค้ามีความเสี่ยง</p>
+              <div class="p-1.5 bg-rose-500/20 rounded-sm text-rose-300"><i data-lucide="alert-circle" class="w-4 h-4"></i></div>
+            </div>
+            <div class="flex items-baseline gap-2 relative z-10">
+              <h2 class="text-3xl font-bold tracking-tight text-white">63</h2>
+              <span class="text-sm font-medium text-[#c2d3ef]">SKUs</span>
+            </div>
+            <div class="mt-3 text-xs font-medium text-[#a6bade] relative z-10">ต้องการการจัดการด่วน (Action Required)</div>
+          </div>
+        </div>
+
+        <!-- Row 2: Charts Area -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          
+          <!-- Pareto Chart (col-span-2) -->
+          <div class="xl:col-span-2 bg-white border border-slate-300 shadow-sm rounded-sm p-6">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+              <div>
+                <h3 class="text-base font-bold text-[#2a2b66]">Top 10 สินค้าตามยอดขาย (Revenue Contribution)</h3>
+                <p class="text-xs text-slate-500 mt-1">แสดงสัดส่วนยอดขายรวมแบบสะสม (Pareto Analysis)</p>
+              </div>
+              <div class="flex items-center gap-4 text-xs font-bold text-slate-600">
+                <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-[#a6bade] rounded-sm"></div> ยอดขาย</span>
+                <span class="flex items-center gap-1.5"><div class="w-4 h-0.5 bg-[#f59e0b]"></div> % สะสม</span>
+              </div>
             </div>
 
-            {/* เส้นกราฟค่าใช้จ่าย (Expense Line) */}
-            <div className="absolute inset-0 pointer-events-none z-20">
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                <path 
-                  d="M 8.33 60 L 25 55 L 41.67 58 L 58.33 50 L 75 40 L 91.67 35" 
-                  fill="none" 
-                  stroke="#728c69" 
-                  strokeWidth="1.5" 
-                  vectorEffect="non-scaling-stroke"
-                />
+            <!-- Pareto Visualizer -->
+            <div class="relative w-full pb-4">
+              <!-- Grid & Cumulative Lines overlay -->
+              <div class="absolute top-0 right-[40px] bottom-0 left-[160px] md:left-[220px] z-20 pointer-events-none">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full overflow-visible">
+                  <!-- Grid -->
+                  <line x1="25" y1="0" x2="25" y2="100" stroke="#f1f5f9" stroke-width="0.5" stroke-dasharray="2,2" />
+                  <line x1="50" y1="0" x2="50" y2="100" stroke="#f1f5f9" stroke-width="0.5" stroke-dasharray="2,2" />
+                  <line x1="75" y1="0" x2="75" y2="100" stroke="#f1f5f9" stroke-width="0.5" stroke-dasharray="2,2" />
+                  <line x1="100" y1="0" x2="100" y2="100" stroke="#f1f5f9" stroke-width="0.5" stroke-dasharray="2,2" />
+                  
+                  <!-- Trend Cumulative Path Line -->
+                  <polyline points="18,5 32,15 44,25 54,35 62,45 69,55 74,65 78,75 82,85 85,95" fill="none" stroke="#f59e0b" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+                  
+                  <!-- Dots -->
+                  <circle cx="18" cy="5" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="32" cy="15" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="44" cy="25" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="54" cy="35" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="62" cy="45" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="69" cy="55" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="74" cy="65" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="78" cy="75" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="82" cy="85" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                  <circle cx="85" cy="95" r="1.5" fill="#fff" stroke="#f59e0b" stroke-width="1" vector-effect="non-scaling-stroke" />
+                </svg>
+              </div>
+
+              <!-- Columns list -->
+              <div class="space-y-0 relative z-10">
+                <!-- Product list loops -->
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">1</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">HARROGATE ORIGINAL 50g</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 100%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿2.5M</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">18%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">2</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">NEOTONE SENSITIVE 30ML</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 85%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿2.1M</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">32%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">3</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">UVEBLOCK SPF 50+ INVISIBLE</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 70%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿1.7M</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">44%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">4</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">GLYCO-A FOAMER 100ML</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 55%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿1.4M</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">54%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">5</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">GENESKIN LIFT SERUM</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 45%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿1.1M</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">62%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">6</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">SULPHUR SOAP ORIGINAL</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 35%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿850K</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">69%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">7</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">HARROGATE SHAMPOO 250ML</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 30%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿750K</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">74%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">8</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">NEOTONE BODY 100ml</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 25%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿620K</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">78%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">9</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">HARROGATE BODY WASH</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 20%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿500K</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">82%</span></div>
+                </div>
+
+                <div class="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
+                  <div class="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
+                    <span class="text-xs font-bold text-slate-400 w-4">10</span>
+                    <span class="text-xs font-bold text-[#2a2b66] truncate">GLYCO-A MEDIUM PEELING</span>
+                  </div>
+                  <div class="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
+                    <div class="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style="width: 15%;">
+                      <span class="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿380K</span>
+                    </div>
+                  </div>
+                  <div class="w-[40px] flex-shrink-0 text-right"><span class="text-xs font-bold text-[#f59e0b]">85%</span></div>
+                </div>
+              </div>
+
+              <!-- Pareto X-Axis Reference labels -->
+              <div class="absolute -bottom-6 right-[40px] left-[160px] md:left-[220px] flex justify-between text-[10px] font-bold text-slate-400 pl-2">
+                <span>0%</span><span class="translate-x-1/2">25%</span><span class="translate-x-1/2">50%</span><span class="translate-x-1/2">75%</span><span>100%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Slow/Dead Stock bar charts list (Right Column) -->
+          <div class="bg-white border border-slate-300 shadow-sm rounded-sm p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+              <div>
+                <h3 class="text-base font-bold text-[#2a2b66]">Top 5 สินค้าค้างสต็อกนาน</h3>
+                <p class="text-xs text-slate-500 mt-1">สินค้าหมุนเวียนช้า (Slow/Dead Stock)</p>
+              </div>
+            </div>
+            
+            <div class="flex-1 flex flex-col justify-center space-y-5">
+              <div class="flex flex-col gap-1.5 group cursor-pointer">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-bold text-[#2a2b66] truncate pr-2">1. หน้ากากอนามัย 3 ชั้น</span>
+                  <span class="text-xs font-bold text-rose-600">185 วัน</span>
+                </div>
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-orange-400 to-rose-600 rounded-full group-hover:brightness-110 transition-all" style="width: 92.5%;"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5 group cursor-pointer">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-bold text-[#2a2b66] truncate pr-2">2. แอลกอฮอล์เจล 500ml</span>
+                  <span class="text-xs font-bold text-rose-600">142 วัน</span>
+                </div>
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-orange-400 to-rose-600 rounded-full group-hover:brightness-110 transition-all" style="width: 71%;"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5 group cursor-pointer">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-bold text-[#2a2b66] truncate pr-2">3. วิตามินดี 1000 IU</span>
+                  <span class="text-xs font-bold text-rose-600">110 วัน</span>
+                </div>
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-orange-400 to-rose-600 rounded-full group-hover:brightness-110 transition-all" style="width: 55%;"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5 group cursor-pointer">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-bold text-[#2a2b66] truncate pr-2">4. สเปรย์แอลกอฮอล์</span>
+                  <span class="text-xs font-bold text-rose-600">95 วัน</span>
+                </div>
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-orange-400 to-rose-600 rounded-full group-hover:brightness-110 transition-all" style="width: 47.5%;"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5 group cursor-pointer">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-bold text-[#2a2b66] truncate pr-2">5. เครื่องวัดไข้ดิจิทัล</span>
+                  <span class="text-xs font-bold text-rose-600">80 วัน</span>
+                </div>
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-orange-400 to-rose-600 rounded-full group-hover:brightness-110 transition-all" style="width: 40%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= 3. BOTTOM ROW: Channels & Margin Tables ================= -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <!-- Online Channel Sales breakdown -->
+          <div class="bg-white border border-slate-300 shadow-sm rounded-sm p-6 flex flex-col">
+            <div class="mb-6 pb-4 border-b border-slate-200">
+              <h3 class="text-base font-bold text-[#2a2b66]">ยอดขายแยกตามช่องทางออนไลน์</h3>
+              <p class="text-xs text-slate-500 mt-1">Online Channel Contribution</p>
+            </div>
+            
+            <div class="flex-1 flex flex-col justify-center space-y-4">
+              <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-bold text-slate-700">ช้อปปี้ (Shopee)</span>
+                  <span class="text-sm font-bold text-[#2a2b66]">45%</span>
+                </div>
+                <div class="w-full bg-slate-100 h-3 rounded-sm overflow-hidden">
+                  <div class="h-full bg-[#f97316] rounded-sm" style="width: 45%;"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-bold text-slate-700">ลาซาด้า (Lazada)</span>
+                  <span class="text-sm font-bold text-[#2a2b66]">30%</span>
+                </div>
+                <div class="w-full bg-slate-100 h-3 rounded-sm overflow-hidden">
+                  <div class="h-full bg-[#1e3a8a] rounded-sm" style="width: 30%;"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-bold text-slate-700">ติ๊กต็อก (TikTok Shop)</span>
+                  <span class="text-sm font-bold text-[#2a2b66]">15%</span>
+                </div>
+                <div class="w-full bg-slate-100 h-3 rounded-sm overflow-hidden">
+                  <div class="h-full bg-[#0f172a] rounded-sm" style="width: 15%;"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-bold text-slate-700">เว็บไซต์บริษัท (Direct)</span>
+                  <span class="text-sm font-bold text-[#2a2b66]">10%</span>
+                </div>
+                <div class="w-full bg-slate-100 h-3 rounded-sm overflow-hidden">
+                  <div class="h-full bg-[#2a2b66] rounded-sm" style="width: 10%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Margin Detail Table with blurred Overlay fade-out -->
+          <div class="xl:col-span-2 bg-white border border-slate-300 shadow-sm rounded-sm p-6 relative overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b-2 border-[#2a2b66] pb-2">
+              <h3 class="text-base font-bold text-[#2a2b66]">เจาะลึกอัตรากำไรสินค้ารายตัว (Margin Details)</h3>
+            </div>
+            
+            <div class="w-full text-left">
+              <div class="flex items-center py-2 bg-[#f8fafc] border-b border-slate-300 px-4">
+                <div class="flex-1 text-xs font-bold text-slate-500">รหัสสินค้า / ชื่อสินค้า (SKU)</div>
+                <div class="w-24 text-right text-xs font-bold text-slate-500">กำไร (GP%)</div>
+                <div class="w-28 text-right text-xs font-bold text-slate-500">จำนวนวันคงคลัง</div>
+              </div>
+              
+              <div class="flex items-center py-3 px-4 border-b border-slate-100">
+                <div class="flex-1 text-xs font-bold text-[#2a2b66] truncate pr-4">SKU-001 | HARROGATE ORIGINAL 50g</div>
+                <div class="w-24 text-right font-bold text-[#2a2b66] text-sm">65.2%</div>
+                <div class="w-28 text-right font-bold text-sm text-emerald-600">45 วัน</div>
+              </div>
+
+              <div class="flex items-center py-3 px-4 border-b border-slate-100">
+                <div class="flex-1 text-xs font-bold text-[#2a2b66] truncate pr-4">SKU-002 | NEOTONE SENSITIVE 30ML</div>
+                <div class="w-24 text-right font-bold text-[#2a2b66] text-sm">58.4%</div>
+                <div class="w-28 text-right font-bold text-sm text-emerald-600">60 วัน</div>
+              </div>
+
+              <div class="flex items-center py-3 px-4 border-b border-slate-100">
+                <div class="flex-1 text-xs font-bold text-[#2a2b66] truncate pr-4">SKU-003 | GLYCO-A POST PEELING 3ML</div>
+                <div class="w-24 text-right font-bold text-[#2a2b66] text-sm">55.0%</div>
+                <div class="w-28 text-right font-bold text-sm text-emerald-600">30 วัน</div>
+              </div>
+
+              <div class="flex items-center py-3 px-4 border-b border-slate-100">
+                <div class="flex-1 text-xs font-bold text-[#2a2b66] truncate pr-4">SKU-004 | UVEBLOCK SPF 50+</div>
+                <div class="w-24 text-right font-bold text-[#2a2b66] text-sm">45.0%</div>
+                <div class="w-28 text-right font-bold text-sm text-amber-500">85 วัน</div>
+              </div>
+
+              <div class="flex items-center py-3 px-4 border-b border-slate-100">
+                <div class="flex-1 text-xs font-bold text-[#2a2b66] truncate pr-4">SKU-005 | GENESKIN LIFT SERUM</div>
+                <div class="w-24 text-right font-bold text-[#2a2b66] text-sm">42.8%</div>
+                <div class="w-28 text-right font-bold text-sm text-rose-500">110 วัน</div>
+              </div>
+
+              <!-- Dummy rows of visual fading-out -->
+              <div class="flex items-center py-3 px-4 opacity-50"><div class="h-4 bg-slate-200 rounded w-1/2"></div></div>
+              <div class="flex items-center py-3 px-4 opacity-20"><div class="h-4 bg-slate-200 rounded w-1/3"></div></div>
+            </div>
+
+            <!-- Fade masking Overlay + Open Full Report Modal Button -->
+            <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-white via-white/90 to-transparent flex items-end justify-center pb-8">
+              <button 
+                onclick="openReportModal()"
+                class="flex items-center gap-2 bg-[#2a2b66] hover:bg-[#35367a] text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-[0_8px_20px_rgba(42,43,102,0.3)] hover:scale-105 transition-all"
+              >
+                <span class="text-lg leading-none mb-0.5">🔍</span> คลิกเพื่อดูรายงานฉบับเต็มทั้งหมด
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= 4. FOOTER ROW: Turnover Trend & Alerts ================= -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 border-t border-slate-200 pt-8">
+          <!-- 6-Month Turnover Rate & Days trend line chart -->
+          <div class="lg:col-span-2 bg-white border border-slate-300 shadow-sm rounded-sm p-6">
+            <div class="flex justify-between items-end mb-6">
+              <div>
+                <h3 class="text-base font-bold text-[#2a2b66]">แนวโน้มอัตราหมุนเวียน & ระยะเวลาขายเฉลี่ย (6 เดือน)</h3>
+                <p class="text-xs text-slate-500 mt-1">วิเคราะห์ประสิทธิภาพการระบายสินค้าคงคลัง</p>
+              </div>
+              <div class="flex gap-4 text-xs font-bold text-slate-600">
+                <span class="flex items-center gap-1.5"><div class="w-3 h-0.5 bg-[#2a2b66]"></div> อัตราหมุนเวียน (รอบ)</span>
+                <span class="flex items-center gap-1.5"><div class="w-3 h-0.5 bg-[#a6bade]"></div> ระยะเวลาขาย (วัน)</span>
+              </div>
+            </div>
+
+            <div class="h-[180px] w-full relative mt-4">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 w-full h-full overflow-visible">
+                <!-- Reference Y-Axis line guides -->
+                <line x1="0" y1="0" x2="100" y2="0" stroke="#f1f5f9" stroke-width="0.5" />
+                <line x1="0" y1="25" x2="100" y2="25" stroke="#f1f5f9" stroke-width="0.5" />
+                <line x1="0" y1="50" x2="100" y2="50" stroke="#f1f5f9" stroke-width="0.5" />
+                <line x1="0" y1="75" x2="100" y2="75" stroke="#f1f5f9" stroke-width="0.5" />
+                <line x1="0" y1="100" x2="100" y2="100" stroke="#f1f5f9" stroke-width="0.5" />
+                
+                <!-- Avg Guide indicator -->
+                <line x1="0" y1="40" x2="100" y2="40" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="2,2" />
+                <text x="101" y="41" font-size="3" fill="#94a3b8" font-weight="bold">Avg</text>
+
+                <!-- Polyline Trend curves -->
+                <polyline points="0,80 20,70 40,65 60,40 80,45 100,20" fill="none" stroke="#2a2b66" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+                <polyline points="0,20 20,30 40,35 60,60 80,55 100,80" fill="none" stroke="#a6bade" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+                
+                <!-- Dots on coordinate vertices -->
+                <circle cx="0" cy="80" r="1.5" fill="#fff" stroke="#2a2b66" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <circle cx="0" cy="20" r="1.5" fill="#fff" stroke="#a6bade" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                
+                <circle cx="20" cy="70" r="1.5" fill="#fff" stroke="#2a2b66" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <circle cx="20" cy="30" r="1.5" fill="#fff" stroke="#a6bade" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                
+                <circle cx="40" cy="65" r="1.5" fill="#fff" stroke="#2a2b66" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <circle cx="40" cy="35" r="1.5" fill="#fff" stroke="#a6bade" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                
+                <circle cx="60" cy="40" r="1.5" fill="#fff" stroke="#2a2b66" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <circle cx="60" cy="60" r="1.5" fill="#fff" stroke="#a6bade" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                
+                <circle cx="80" cy="45" r="1.5" fill="#fff" stroke="#2a2b66" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <circle cx="80" cy="55" r="1.5" fill="#fff" stroke="#a6bade" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                
+                <circle cx="100" cy="20" r="1.5" fill="#fff" stroke="#2a2b66" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                <circle cx="100" cy="80" r="1.5" fill="#fff" stroke="#a6bade" stroke-width="1" vector-effect="non-scaling-stroke"/>
               </svg>
-            </div>
 
-            {/* แท่งกราฟและจุดค่าใช้จ่าย */}
-            <div className="absolute inset-0 flex items-end justify-between">
-              {[
-                { m: 'ธ.ค.', r: 50, p: 10, e: 40, val: '7.5M' }, 
-                { m: 'ม.ค.', r: 55, p: 10, e: 45, val: '8.2M' }, 
-                { m: 'ก.พ.', r: 65, p: 23, e: 42, val: '9.7M' }, 
-                { m: 'มี.ค.', r: 80, p: 30, e: 50, val: '12.0M' }, 
-                { m: 'เม.ย.', r: 75, p: 15, e: 60, val: '11.2M' }, 
-                { m: 'พ.ค.', r: 95, p: 30, e: 65, val: '14.2M' }
-              ].map((data, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex flex-col items-center justify-end h-full flex-1 z-10 group cursor-pointer relative"
-                  onMouseEnter={() => setActiveChartIdx(idx)}
-                  onClick={() => setActiveChartIdx(idx)}
-                >
-                  {/* Interactive Tooltip บนเมาส์ชี้ */}
-                  <div className={`absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-[#2a2b66] text-white text-xs font-bold px-3 py-1.5 rounded-sm shadow-md whitespace-nowrap z-50 transition-all duration-200 border border-[#444696] ${activeChartIdx === idx ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
-                    รายได้ ฿{data.val}
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#2a2b66] border-b border-r border-[#444696] rotate-45"></div>
-                  </div>
-
-                  <div className="flex items-end justify-center gap-1 w-full h-full relative">
-                    {/* แท่งรายได้ */}
-                    <div 
-                      className="w-1/3 max-w-[28px] bg-[#2a2b66] group-hover:opacity-90 transition-opacity" 
-                      style={{ height: `${data.r}%` }}
-                    ></div>
-                    {/* แท่งกำไร */}
-                    <div 
-                      className="w-1/3 max-w-[28px] bg-[#a6bade] group-hover:opacity-90 transition-opacity" 
-                      style={{ height: `${data.p}%` }}
-                    ></div>
-                    {/* จุดค่าใช้จ่าย */}
-                    <div 
-                      className="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#728c69] rounded-full z-30 transition-transform group-hover:scale-125 group-hover:ring-2 group-hover:ring-white" 
-                      style={{ bottom: `calc(${data.e}% - 5px)` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+              <!-- Month labels -->
+              <div class="absolute -bottom-6 left-0 right-0 flex justify-between text-[10px] font-bold text-slate-500">
+                <span>ธ.ค.</span><span>ม.ค.</span><span>ก.พ.</span><span>มี.ค.</span><span>เม.ย.</span><span>พ.ค.</span>
+              </div>
+              <!-- Turnover values left axis -->
+              <div class="absolute -left-6 top-0 bottom-0 flex flex-col justify-between text-[9px] font-bold text-[#2a2b66] items-end pb-4">
+                <span>5.0</span><span>3.5</span><span>2.0</span>
+              </div>
+              <!-- Average days right axis -->
+              <div class="absolute -right-6 top-0 bottom-0 flex flex-col justify-between text-[9px] font-bold text-[#a6bade] items-start pb-4">
+                <span>40</span><span>70</span><span>100</span>
+              </div>
             </div>
           </div>
-          
-          <div className="flex justify-between mt-3 border-t border-slate-300 pt-3">
-            {['ธ.ค.', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.'].map((m, idx) => (
-              <div key={idx} className="flex-1 text-center">
-                <span className={`text-xs ${idx === 5 ? 'text-[#2a2b66] font-bold' : 'text-slate-500 font-medium'}`}>{m}</span>
+
+          <!-- Product tab specific Action Required cards -->
+          <div>
+            <div class="flex justify-between items-center mb-4 border-b-2 border-slate-300 pb-2">
+              <h3 class="text-base font-bold text-[#2a2b66]">สิ่งที่ต้องดำเนินการ (Action Required)</h3>
+            </div>
+            <div class="space-y-4">
+              <!-- Near-Expiry Red card -->
+              <div class="border border-rose-200 bg-[#fff5f5] p-5 rounded-sm border-l-4 border-l-rose-500 hover:shadow-md transition-shadow cursor-pointer">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2 text-rose-700">
+                    <i data-lucide="clock" class="w-[18px] h-[18px]"></i>
+                    <h4 class="font-bold text-sm">สินค้าใกล้หมดอายุ (Near-Expiry)</h4>
+                  </div>
+                  <span class="text-[10px] bg-rose-200 text-rose-800 font-bold px-2 py-0.5 rounded-sm">&lt; 3 เดือน</span>
+                </div>
+                <div class="flex items-end justify-between mt-3">
+                  <p class="text-xs text-rose-600 font-medium">มูลค่าทุนจมประเมิน</p>
+                  <div class="text-right">
+                    <p class="text-2xl font-bold text-rose-600 leading-none">45 <span class="text-sm font-semibold">SKUs</span></p>
+                    <p class="text-xs font-bold text-rose-800 mt-1">~ ฿420K</p>
+                  </div>
+                </div>
               </div>
-            ))}
+              <!-- Slow Moving Yellow card -->
+              <div class="border border-amber-200 bg-[#fffbeb] p-5 rounded-sm border-l-4 border-l-amber-400 hover:shadow-md transition-shadow cursor-pointer">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2 text-amber-700">
+                    <i data-lucide="layers" class="w-[18px] h-[18px]"></i>
+                    <h4 class="font-bold text-sm">สินค้าหมุนเวียนช้า (Slow Moving)</h4>
+                  </div>
+                  <span class="text-[10px] bg-amber-200 text-amber-800 font-bold px-2 py-0.5 rounded-sm">&gt; 90 วัน</span>
+                </div>
+                <div class="flex items-end justify-between mt-3">
+                  <p class="text-xs text-amber-700 font-medium">มูลค่าทุนจมประเมิน</p>
+                  <div class="text-right">
+                    <p class="text-2xl font-bold text-amber-600 leading-none">18 <span class="text-sm font-semibold">SKUs</span></p>
+                    <p class="text-xs font-bold text-amber-800 mt-1">~ ฿185K</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
       </div>
 
-      {/* ฝั่งขวา: สัดส่วนค่าใช้จ่าย */}
-      <div>
-        <div className="flex justify-center mb-6">
-          <h3 className="bg-[#2a2b66] text-white px-6 py-1.5 font-bold text-sm rounded-sm shadow-sm">สัดส่วนค่าใช้จ่าย</h3>
-        </div>
-        <div className="flex flex-col items-center mt-8">
-          <div className="relative w-52 h-52 mb-8">
-            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="20" />
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#2a2b66" strokeWidth="20" strokeDasharray="25 75" pathLength="100" />
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#a6bade" strokeWidth="20" strokeDasharray="30 70" strokeDashoffset="-25" pathLength="100" />
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#cbd5e1" strokeWidth="20" strokeDasharray="45 55" strokeDashoffset="-55" pathLength="100" />
-            </svg>
-            <div className="absolute top-[25%] -left-[10%] text-[9px] font-bold text-slate-700 text-right leading-tight">ต้นทุนขาย<br/>45%</div>
-            <div className="absolute top-[25%] -right-[10%] text-[9px] font-bold text-slate-700 text-left leading-tight">การตลาด<br/>25%</div>
-            <div className="absolute -bottom-[5%] left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-700 text-center leading-tight">เงินเดือน/บริหาร<br/>30%</div>
-          </div>
-          
-          {/* ส่วนข้อมูลรายละเอียดใต้กราฟ */}
-          <div className="w-full space-y-2 mt-2 px-4">
-            {[
-              { name: 'ต้นทุนขาย', val: '45%', color: 'bg-[#cbd5e1]' },
-              { name: 'การตลาด', val: '25%', color: 'bg-[#2a2b66]' },
-              { name: 'เงินเดือนและบริหาร', val: '30%', color: 'bg-[#a6bade]' },
-            ].map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-0">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 ${item.color}`}></div>
-                  <span className="font-medium text-slate-700 text-xs">{item.name}</span>
-                </div>
-                <span className="font-bold text-[#2a2b66] text-sm">{item.val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <!-- ================= TAB 3 & 4 INACTIVE PLACEHOLDERS ================= -->
+      <div id="inactive-tab-content" class="hidden h-[400px] flex flex-col items-center justify-center text-slate-400 gap-4">
+        <i data-lucide="layers" class="w-12 h-12 opacity-20"></i>
+        <p class="font-bold text-lg">กำลังพัฒนาระบบ Tab: <span id="inactive-tab-title">กระแสเงินสด</span></p>
       </div>
+
     </div>
+  </div>
 
-    <hr className="border-slate-200 mt-2 mb-2" />
-
-    {/* ================= BOTTOM SECTION ================= */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4">
-      {/* ตารางสินค้าขายดี */}
-      <div className="lg:col-span-2">
-        <div className="flex justify-between items-center mb-4 border-b-2 border-[#2a2b66] pb-2">
-          <h3 className="text-base font-bold text-[#2a2b66]">สินค้าขายดีตามอัตรากำไรขั้นต้น</h3>
+  <!-- ======================== INTERACTIVE REPORT FULL TABLE MODAL ======================== -->
+  <div 
+    id="report-modal" 
+    class="hidden fixed inset-0 z-[99999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+  >
+    <div class="bg-white w-full max-w-4xl rounded-sm shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-[#f8fafc]">
+        <div>
+          <h2 class="text-lg font-bold text-[#2a2b66]">รายงานเจาะลึกอัตรากำไรสินค้ารายตัว (Margin Details)</h2>
+          <p class="text-xs text-slate-500 mt-1">ข้อมูลอัปเดตล่าสุด: พ.ค. 2569</p>
         </div>
-        
-        <div className="space-y-0">
-          {/* หัวตาราง */}
-          <div className="flex items-center gap-4 py-2 bg-[#f8fafc] border-b border-slate-300 px-2">
-            <div className="w-8 text-xs font-bold text-slate-500">ลำดับ</div>
-            <div className="w-48 text-xs font-bold text-slate-500">ชื่อสินค้า</div>
-            <div className="flex-1 text-xs font-bold text-slate-500 text-center">สัดส่วนกำไร</div>
-            <div className="w-16 text-right text-xs font-bold text-slate-500">GP%</div>
-          </div>
-
-          {/* รายการแถวสินค้า */}
-          {[
-            { name: 'HARROGATE ORIGINAL 50 g', gp: '65%', val: '85%' },
-            { name: 'NEOTONE SENSITIVE 30ML', gp: '58%', val: '75%' },
-            { name: 'GLYCO-A FOAMER FLACON 100ML', gp: '42%', val: '50%' },
-            { name: 'UVEBLOCK SPF 50+ INVISIBLE FLUID 40ml', gp: '35%', val: '40%' },
-            { name: 'GENESKIN LIFT LIFTING SERUM 28ml', gp: '15%', val: '15%' },
-          ].map((prod, idx) => (
-            <div key={idx} className="flex items-center gap-4 py-3 px-2 border-b border-slate-100 hover:bg-slate-50 transition-colors">
-              <div className="w-8 text-sm font-bold text-slate-400">0{idx+1}</div>
-              <div className="w-48 text-xs font-bold text-[#2a2b66] truncate">{prod.name}</div>
-              <div className="flex-1 h-3 bg-[#eef2f9] border border-[#c2d3ef] rounded-sm overflow-hidden flex">
-                <div 
-                  className="h-full bg-[#a6bade] transition-all duration-500" 
-                  style={{ width: prod.val }}
-                ></div>
-              </div>
-              <div className="w-16 text-right font-bold text-[#2a2b66] text-sm">{prod.gp}</div>
-            </div>
-          ))}
-        </div>
+        <button 
+          onclick="closeReportModal()"
+          class="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
-
-      {/* บล็อกรายการแจ้งเตือนด่วน */}
-      <div>
-        <div className="flex justify-between items-center mb-4 border-b-2 border-rose-600 pb-2">
-          <h3 className="text-base font-bold text-rose-700">สิ่งที่ต้องดำเนินการด่วน</h3>
-        </div>
-        
-        <div className="space-y-4">
-          {/* ลูกหนี้ค้างชำระ */}
-          <div className="border border-rose-200 bg-rose-50 p-4 rounded-sm border-l-4 border-l-rose-600">
-            <div className="flex items-center gap-3 mb-2">
-              <CreditCard size={18} className="text-rose-600" />
-              <h4 className="font-bold text-rose-900 text-sm">ลูกหนี้ค้างชำระ &gt;60 วัน</h4>
-            </div>
-            <div className="flex items-end justify-between mt-2">
-              <p className="text-xs text-rose-700 font-medium">ยอดค้างชำระรวม</p>
-              <p className="text-2xl font-bold text-rose-700 leading-none">฿1.2M</p>
-            </div>
-          </div>
-
-          {/* สต็อกใกล้หมดอายุ */}
-          <div className="border border-amber-200 bg-amber-50 p-4 rounded-sm border-l-4 border-l-amber-500">
-            <div className="flex items-center gap-3 mb-2">
-              <Package size={18} className="text-amber-600" />
-              <h4 className="font-bold text-amber-900 text-sm">สินค้าใกล้หมดอายุ</h4>
-            </div>
-            <div className="flex items-end justify-between mt-2">
-              <p className="text-xs text-amber-700 font-medium">จำนวนที่ได้รับผลกระทบ</p>
-              <p className="text-2xl font-bold text-amber-600 leading-none">45 <span className="text-sm font-semibold text-amber-700">รายการ</span></p>
-            </div>
-          </div>
-        </div>
+      
+      <!-- Modal Table Body -->
+      <div class="overflow-y-auto flex-1 p-6 custom-scrollbar">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-[#2a2b66] text-white text-xs">
+              <th class="py-3 px-4 font-bold border border-[#3a3b86]">ลำดับ</th>
+              <th class="py-3 px-4 font-bold border border-[#3a3b86]">รหัสสินค้า / ชื่อสินค้า (SKU)</th>
+              <th class="py-3 px-4 font-bold text-right border border-[#3a3b86]">กำไร (GP%)</th>
+              <th class="py-3 px-4 font-bold text-right border border-[#3a3b86]">จำนวนวันคงคลัง</th>
+              <th class="py-3 px-4 font-bold text-center border border-[#3a3b86]">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">1</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-001 | HARROGATE ORIGINAL 50g</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">65.2%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">45 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-emerald-100 text-emerald-700">ปกติ</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">2</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-002 | NEOTONE SENSITIVE 30ML</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">58.4%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">60 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-emerald-100 text-emerald-700">ปกติ</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">3</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-003 | GLYCO-A POST PEELING 3ML</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">55.0%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">30 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-blue-100 text-blue-700">ขายดี</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">4</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-004 | UVEBLOCK SPF 50+</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">45.0%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">85 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-amber-100 text-amber-700">เฝ้าระวัง</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">5</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-005 | GENESKIN LIFT SERUM</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">42.8%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">110 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-rose-100 text-rose-700">เสี่ยงค้างสต็อก</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">6</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-006 | SULPHUR SOAP ORIGINAL</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">38.5%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">15 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-blue-100 text-blue-700">ขายดีมาก</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">7</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-007 | HARROGATE SHAMPOO 250ML</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">35.0%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">25 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-blue-100 text-blue-700">ขายดี</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">8</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-008 | NEOTONE BODY 100ml</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">32.1%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">140 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-rose-100 text-rose-700">ค้างสต็อก</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">9</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-009 | หน้ากากอนามัย 3 ชั้น</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">15.0%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">185 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-rose-600 text-white">ค้างสต็อกนาน</span>
+              </td>
+            </tr>
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">10</td>
+              <td class="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">SKU-010 | แอลกอฮอล์เจล 500ml</td>
+              <td class="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">12.5%</td>
+              <td class="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">142 วัน</td>
+              <td class="py-3 px-4 border-x border-slate-200 text-center">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-sm bg-rose-600 text-white">ค้างสต็อกนาน</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+        <button 
+          onclick="closeReportModal()"
+          class="bg-[#2a2b66] hover:bg-[#35367a] text-white px-6 py-2 rounded-sm font-bold text-sm transition-colors"
+        >
+          ปิดหน้าต่าง
+        </button>
       </div>
     </div>
   </div>
-);
 
-// ==========================================
-// TAB 2: PRODUCT & CHANNEL INTELLIGENCE
-// ==========================================
-const ProductTab = () => {
-  const [isReportOpen, setIsReportOpen] = useState(false);
+  <!-- ======================== INTERACTIVE JAVASCRIPT ======================== -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
 
-  // ข้อมูลสเปกสินค้าขายดี (Pareto)
-  const top10Products = [
-    { name: 'HARROGATE ORIGINAL 50g', rev: 100, cum: 18, actual: '2.5M' },
-    { name: 'NEOTONE SENSITIVE 30ML', rev: 85, cum: 32, actual: '2.1M' },
-    { name: 'UVEBLOCK SPF 50+ INVISIBLE', rev: 70, cum: 44, actual: '1.7M' },
-    { name: 'GLYCO-A FOAMER 100ML', rev: 55, cum: 54, actual: '1.4M' },
-    { name: 'GENESKIN LIFT SERUM', rev: 45, cum: 62, actual: '1.1M' },
-    { name: 'SULPHUR SOAP ORIGINAL', rev: 35, cum: 69, actual: '850K' },
-    { name: 'HARROGATE SHAMPOO 250ML', rev: 30, cum: 74, actual: '750K' },
-    { name: 'NEOTONE BODY 100ml', rev: 25, cum: 78, actual: '620K' },
-    { name: 'HARROGATE BODY WASH', rev: 20, cum: 82, actual: '500K' },
-    { name: 'GLYCO-A MEDIUM PEELING', rev: 15, cum: 85, actual: '380K' },
-  ];
+    // ================== STATE MANAGEMENT & TAB SWITCHER ==================
+    const summaryTab = document.getElementById('summary-tab-content');
+    const productTab = document.getElementById('product-tab-content');
+    const inactiveTab = document.getElementById('inactive-tab-content');
+    const inactiveTabTitle = document.getElementById('inactive-tab-title');
+    const subHeaderIndicator = document.getElementById('sub-header-tab-indicator');
+    const tabBtns = document.querySelectorAll('.tab-btn');
 
-  const paretoPoints = top10Products.map((p, i) => `${p.cum},${(i * 10) + 5}`).join(' ');
+    function switchTab(tabName) {
+      subHeaderIndicator.innerText = tabName;
 
-  // ข้อมูลค้างสต็อกนาน
-  const slowStock = [
-    { name: 'หน้ากากอนามัย 3 ชั้น', days: 185 },
-    { name: 'แอลกอฮอล์เจล 500ml', days: 142 },
-    { name: 'วิตามินดี 1000 IU', days: 110 },
-    { name: 'สเปรย์แอลกอฮอล์', days: 95 },
-    { name: 'เครื่องวัดไข้ดิจิทัล', days: 80 }
-  ];
+      // Hide all contents
+      summaryTab.classList.add('hidden');
+      productTab.classList.add('hidden');
+      inactiveTab.classList.add('hidden');
 
-  // สัดส่วนยอดขายออนไลน์
-  const channels = [
-    { name: 'ช้อปปี้ (Shopee)', percent: 45, color: 'bg-[#f97316]' },
-    { name: 'ลาซาด้า (Lazada)', percent: 30, color: 'bg-[#1e3a8a]' },
-    { name: 'ติ๊กต็อก (TikTok Shop)', percent: 15, color: 'bg-[#0f172a]' },
-    { name: 'เว็บไซต์บริษัท (Direct)', percent: 10, color: 'bg-[#2a2b66]' },
-  ];
+      if (tabName === 'ภาพรวม') {
+        summaryTab.classList.remove('hidden');
+      } else if (tabName === 'สินค้า') {
+        productTab.classList.remove('hidden');
+      } else {
+        inactiveTab.classList.remove('hidden');
+        inactiveTabTitle.innerText = tabName;
+      }
 
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* ================= 1. TOP ROW: KPI CARDS ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 border border-slate-300 shadow-sm rounded-sm flex flex-col justify-between group hover:border-[#a6bade] transition-colors">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-sm font-bold text-[#2a2b66]">สัดส่วนรายได้ Top 10</p>
-            <div className="p-1.5 bg-[#f0f4f8] rounded-sm text-[#2a2b66]"><PieChart size={16} /></div>
-          </div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">68.5%</h2>
-          <div className="flex items-center gap-1 mt-3 text-xs font-medium text-slate-500">
-            จากสินค้าทั้งหมด 142 รายการ
-          </div>
-        </div>
-
-        <div className="bg-white p-5 border border-slate-300 shadow-sm rounded-sm flex flex-col justify-between group hover:border-[#a6bade] transition-colors">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-sm font-bold text-[#2a2b66]">อัตรากำไรขั้นต้นเฉลี่ย</p>
-            <div className="p-1.5 bg-[#f0f4f8] rounded-sm text-[#2a2b66]"><TrendingUp size={16} /></div>
-          </div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">42.5%</h2>
-          <div className="flex items-center gap-1 mt-3 text-xs font-medium text-emerald-600">
-            <TrendingUp size={12} /> +1.2% เทียบไตรมาสก่อน
-          </div>
-        </div>
-
-        <div className="bg-white p-5 border border-slate-300 shadow-sm rounded-sm flex flex-col justify-between group hover:border-[#a6bade] transition-colors">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-sm font-bold text-[#2a2b66]">อัตราหมุนเวียนสินค้า</p>
-            <div className="p-1.5 bg-[#f0f4f8] rounded-sm text-[#2a2b66]"><RefreshCw size={16} /></div>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">4.2</h2>
-            <span className="text-sm font-bold text-slate-500">รอบ/ปี</span>
-          </div>
-          <div className="flex items-center gap-1 mt-3 text-xs font-medium text-slate-500">
-            ค่าเฉลี่ยย้อนหลัง 6 เดือน
-          </div>
-        </div>
-
-        <div className="bg-[#2a2b66] text-white p-5 border border-[#1f204d] shadow-sm rounded-sm flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-10"><AlertTriangle size={80} /></div>
-          <div className="flex justify-between items-center mb-2 relative z-10">
-            <p className="text-sm font-bold text-[#c2d3ef]">สินค้ามีความเสี่ยง</p>
-            <div className="p-1.5 bg-rose-500/20 rounded-sm text-rose-300"><AlertCircle size={16} /></div>
-          </div>
-          <div className="flex items-baseline gap-2 relative z-10">
-            <h2 className="text-3xl font-bold tracking-tight text-white">63</h2>
-            <span className="text-sm font-medium text-[#c2d3ef]">SKUs</span>
-          </div>
-          <div className="mt-3 text-xs font-medium text-[#a6bade] relative z-10">
-            ต้องการการจัดการด่วน (Action Required)
-          </div>
-        </div>
-      </div>
-
-      {/* ================= 2. MIDDLE ROW ================= */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        
-        {/* Pareto Chart แสดง Top 10 */}
-        <div className="xl:col-span-2 bg-white border border-slate-300 shadow-sm rounded-sm p-6">
-          <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
-            <div>
-              <h3 className="text-base font-bold text-[#2a2b66]">Top 10 สินค้าตามยอดขาย (Revenue Contribution)</h3>
-              <p className="text-xs text-slate-500 mt-1">แสดงสัดส่วนยอดขายรวมแบบสะสม (Pareto Analysis)</p>
-            </div>
-            <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
-              <span className="flex items-center gap-1.5"><div className="w-3 h-3 bg-[#a6bade] rounded-sm"></div> ยอดขาย</span>
-              <span className="flex items-center gap-1.5"><div className="w-4 h-0.5 bg-[#f59e0b]"></div> % สะสม</span>
-            </div>
-          </div>
-
-          <div className="relative w-full pb-4">
-            <div className="absolute top-0 right-[40px] bottom-0 left-[160px] md:left-[220px] z-20 pointer-events-none">
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                {[25, 50, 75, 100].map(x => (
-                  <line key={x} x1={x} y1="0" x2={x} y2="100" stroke="#f1f5f9" strokeWidth="0.5" strokeDasharray="2,2" />
-                ))}
-                <polyline points={paretoPoints} fill="none" stroke="#f59e0b" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-                {top10Products.map((p, i) => (
-                  <circle key={i} cx={p.cum} cy={(i * 10) + 5} r="1.5" fill="#fff" stroke="#f59e0b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                ))}
-              </svg>
-            </div>
-
-            <div className="space-y-0 relative z-10">
-              {top10Products.map((prod, idx) => (
-                <div key={idx} className="flex items-center h-10 group hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-sm">
-                  <div className="w-[160px] md:w-[220px] flex-shrink-0 flex items-center gap-3 pr-4">
-                    <span className="text-xs font-bold text-slate-400 w-4">{idx + 1}</span>
-                    <span className="text-xs font-bold text-[#2a2b66] truncate" title={prod.name}>{prod.name}</span>
-                  </div>
-                  <div className="flex-1 flex items-center h-full relative border-l border-slate-200 pl-2 pr-[40px]">
-                    <div className="h-[14px] bg-[#a6bade] rounded-r-sm group-hover:bg-[#85a1d1] transition-colors relative" style={{ width: `${prod.rev}%` }}>
-                      <span className="absolute -right-1 translate-x-full text-[10px] font-bold text-slate-600 pl-2 opacity-0 group-hover:opacity-100 transition-opacity">฿{prod.actual}</span>
-                    </div>
-                  </div>
-                  <div className="w-[40px] flex-shrink-0 text-right">
-                    <span className="text-xs font-bold text-[#f59e0b]">{prod.cum}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="absolute -bottom-6 right-[40px] left-[160px] md:left-[220px] flex justify-between text-[10px] font-bold text-slate-400 pl-2">
-              <span>0%</span><span className="translate-x-1/2">25%</span><span className="translate-x-1/2">50%</span><span className="translate-x-1/2">75%</span><span>100%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Slow/Dead Stock บาร์สีส้ม-แดง */}
-        <div className="bg-white border border-slate-300 shadow-sm rounded-sm p-6 flex flex-col">
-          <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
-            <div>
-              <h3 className="text-base font-bold text-[#2a2b66]">Top 5 สินค้าค้างสต็อกนาน</h3>
-              <p className="text-xs text-slate-500 mt-1">สินค้าหมุนเวียนช้า (Slow/Dead Stock)</p>
-            </div>
-          </div>
-          
-          <div className="flex-1 flex flex-col justify-center space-y-5">
-            {slowStock.map((prod, idx) => (
-              <div key={idx} className="flex flex-col gap-1.5 group cursor-pointer">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-[#2a2b66] truncate pr-2">{idx + 1}. {prod.name}</span>
-                  <span className="text-xs font-bold text-rose-600">{prod.days} วัน</span>
-                </div>
-                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-orange-400 to-rose-600 rounded-full group-hover:brightness-110 transition-all"
-                    style={{ width: `${Math.min((prod.days / 200) * 100, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ================= 3. BOTTOM ROW ================= */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* ช่องทางขายออนไลน์ */}
-        <div className="bg-white border border-slate-300 shadow-sm rounded-sm p-6 flex flex-col">
-          <div className="mb-6 pb-4 border-b border-slate-200">
-            <h3 className="text-base font-bold text-[#2a2b66]">ยอดขายแยกตามช่องทางออนไลน์</h3>
-            <p className="text-xs text-slate-500 mt-1">Online Channel Contribution</p>
-          </div>
-          
-          <div className="flex-1 flex flex-col justify-center space-y-4">
-            {channels.map((ch, idx) => (
-              <div key={idx} className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-700">{ch.name}</span>
-                  <span className="text-sm font-bold text-[#2a2b66]">{ch.percent}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-3 rounded-sm overflow-hidden">
-                  <div className={`h-full ${ch.color} rounded-sm`} style={{ width: `${ch.percent}%` }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* แผงตารางพรีวิวรายงานเจาะลึกพร้อมหน้ากาก Overlay */}
-        <div className="xl:col-span-2 bg-white border border-slate-300 shadow-sm rounded-sm p-6 relative overflow-hidden flex flex-col">
-          <div className="flex justify-between items-center mb-4 border-b-2 border-[#2a2b66] pb-2">
-            <h3 className="text-base font-bold text-[#2a2b66]">เจาะลึกอัตรากำไรสินค้ารายตัว (Margin Details)</h3>
-          </div>
-          
-          <div className="w-full text-left">
-            <div className="flex items-center py-2 bg-[#f8fafc] border-b border-slate-300 px-4">
-              <div className="flex-1 text-xs font-bold text-slate-500">รหัสสินค้า / ชื่อสินค้า (SKU)</div>
-              <div className="w-24 text-right text-xs font-bold text-slate-500">กำไร (GP%)</div>
-              <div className="w-28 text-right text-xs font-bold text-slate-500">จำนวนวันคงคลัง</div>
-            </div>
-            
-            {[
-              { sku: 'SKU-001 | HARROGATE ORIGINAL 50g', gp: '65.2%', days: '45 วัน', status: 'text-emerald-600' },
-              { sku: 'SKU-002 | NEOTONE SENSITIVE 30ML', gp: '58.4%', days: '60 วัน', status: 'text-emerald-600' },
-              { sku: 'SKU-003 | GLYCO-A POST PEELING 3ML', gp: '55.0%', days: '30 วัน', status: 'text-emerald-600' },
-              { sku: 'SKU-004 | UVEBLOCK SPF 50+', gp: '45.0%', days: '85 วัน', status: 'text-amber-500' },
-              { sku: 'SKU-005 | GENESKIN LIFT SERUM', gp: '42.8%', days: '110 วัน', status: 'text-rose-500' },
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center py-3 px-4 border-b border-slate-100">
-                <div className="flex-1 text-xs font-bold text-[#2a2b66] truncate pr-4">{item.sku}</div>
-                <div className="w-24 text-right font-bold text-[#2a2b66] text-sm">{item.gp}</div>
-                <div className={`w-28 text-right font-bold text-sm ${item.status}`}>{item.days}</div>
-              </div>
-            ))}
-            <div className="flex items-center py-3 px-4 opacity-50"><div className="h-4 bg-slate-200 rounded w-1/2"></div></div>
-            <div className="flex items-center py-3 px-4 opacity-20"><div className="h-4 bg-slate-200 rounded w-1/3"></div></div>
-          </div>
-
-          {/* ฟิล์มฝ้าบังและปุ่มเปิดรายงานจริง */}
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-white via-white/90 to-transparent flex items-end justify-center pb-8">
-            <button 
-              onClick={() => setIsReportOpen(true)}
-              className="flex items-center gap-2 bg-[#2a2b66] hover:bg-[#35367a] text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-[0_8px_20px_rgba(42,43,102,0.3)] hover:scale-105 transition-all"
-            >
-              <span className="text-lg leading-none mb-0.5">🔍</span> คลิกเพื่อดูรายงานฉบับเต็มทั้งหมด
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ================= 4. FOOTER ROW ================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 border-t border-slate-200 pt-8">
-        {/* กราฟแนวโน้มความเคลื่อนไหว 6 เดือน */}
-        <div className="lg:col-span-2 bg-white border border-slate-300 shadow-sm rounded-sm p-6">
-          <div className="flex justify-between items-end mb-6">
-            <div>
-              <h3 className="text-base font-bold text-[#2a2b66]">แนวโน้มอัตราหมุนเวียน & ระยะเวลาขายเฉลี่ย (6 เดือน)</h3>
-              <p className="text-xs text-slate-500 mt-1">วิเคราะห์ประสิทธิภาพการระบายสินค้าคงคลัง</p>
-            </div>
-            <div className="flex gap-4 text-xs font-bold text-slate-600">
-              <span className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-[#2a2b66]"></div> อัตราหมุนเวียน (รอบ)</span>
-              <span className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-[#a6bade]"></div> ระยะเวลาขาย (วัน)</span>
-            </div>
-          </div>
-
-          <div className="h-[180px] w-full relative mt-4">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
-              {[0, 25, 50, 75, 100].map(y => (
-                <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#f1f5f9" strokeWidth="0.5" />
-              ))}
-              <line x1="0" y1="40" x2="100" y2="40" stroke="#94a3b8" strokeWidth="0.5" strokeDasharray="2,2" />
-              <text x="101" y="41" fontSize="3" fill="#94a3b8" fontWeight="bold">Avg</text>
-              <polyline points="0,80 20,70 40,65 60,40 80,45 100,20" fill="none" stroke="#2a2b66" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-              <polyline points="0,20 20,30 40,35 60,60 80,55 100,80" fill="none" stroke="#a6bade" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-              {[
-                {x: 0, y1: 80, y2: 20}, {x: 20, y1: 70, y2: 30}, {x: 40, y1: 65, y2: 35},
-                {x: 60, y1: 40, y2: 60}, {x: 80, y1: 45, y2: 55}, {x: 100, y1: 20, y2: 80}
-              ].map((pt, i) => (
-                <g key={i}>
-                  <circle cx={pt.x} cy={pt.y1} r="1.5" fill="#fff" stroke="#2a2b66" strokeWidth="1" vectorEffect="non-scaling-stroke"/>
-                  <circle cx={pt.x} cy={pt.y2} r="1.5" fill="#fff" stroke="#a6bade" strokeWidth="1" vectorEffect="non-scaling-stroke"/>
-                </g>
-              ))}
-            </svg>
-            <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-[10px] font-bold text-slate-500">
-              <span>ธ.ค.</span><span>ม.ค.</span><span>ก.พ.</span><span>มี.ค.</span><span>เม.ย.</span><span>พ.ค.</span>
-            </div>
-            <div className="absolute -left-6 top-0 bottom-0 flex flex-col justify-between text-[9px] font-bold text-[#2a2b66] items-end pb-4">
-              <span>5.0</span><span>3.5</span><span>2.0</span>
-            </div>
-            <div className="absolute -right-6 top-0 bottom-0 flex flex-col justify-between text-[9px] font-bold text-[#a6bade] items-start pb-4">
-              <span>40</span><span>70</span><span>100</span>
-            </div>
-          </div>
-        </div>
-
-        {/* การ์ดแจ้งเตือนสำหรับหน้าสินค้า */}
-        <div>
-          <div className="flex justify-between items-center mb-4 border-b-2 border-slate-300 pb-2">
-            <h3 className="text-base font-bold text-[#2a2b66]">สิ่งที่ต้องดำเนินการ (Action Required)</h3>
-          </div>
-          <div className="space-y-4">
-            <div className="border border-rose-200 bg-[#fff5f5] p-5 rounded-sm border-l-4 border-l-rose-500 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-rose-700">
-                  <Clock size={18} />
-                  <h4 className="font-bold text-sm">สินค้าใกล้หมดอายุ (Near-Expiry)</h4>
-                </div>
-                <span className="text-[10px] bg-rose-200 text-rose-800 font-bold px-2 py-0.5 rounded-sm">&lt; 3 เดือน</span>
-              </div>
-              <div className="flex items-end justify-between mt-3">
-                <p className="text-xs text-rose-600 font-medium">มูลค่าทุนจมประเมิน</p>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-rose-600 leading-none">45 <span className="text-sm font-semibold">SKUs</span></p>
-                  <p className="text-xs font-bold text-rose-800 mt-1">~ ฿420K</p>
-                </div>
-              </div>
-            </div>
-            <div className="border border-amber-200 bg-[#fffbeb] p-5 rounded-sm border-l-4 border-l-amber-400 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-amber-700">
-                  <Layers size={18} />
-                  <h4 className="font-bold text-sm">สินค้าหมุนเวียนช้า (Slow Moving)</h4>
-                </div>
-                <span className="text-[10px] bg-amber-200 text-amber-800 font-bold px-2 py-0.5 rounded-sm">&gt; 90 วัน</span>
-              </div>
-              <div className="flex items-end justify-between mt-3">
-                <p className="text-xs text-amber-700 font-medium">มูลค่าทุนจมประเมิน</p>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-amber-600 leading-none">18 <span className="text-sm font-semibold">SKUs</span></p>
-                  <p className="text-xs font-bold text-amber-800 mt-1">~ ฿185K</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ================= REPORT MODAL (POPUP หน้าต่างตารางเต็ม) ================= */}
-      {isReportOpen && (
-        <div className="fixed inset-0 z-[99999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-4xl rounded-sm shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-[#f8fafc]">
-              <div>
-                <h2 className="text-lg font-bold text-[#2a2b66]">รายงานเจาะลึกอัตรากำไรสินค้ารายตัว (Margin Details)</h2>
-                <p className="text-xs text-slate-500 mt-1">ข้อมูลอัปเดตล่าสุด: พ.ค. 2569</p>
-              </div>
-              <button 
-                onClick={() => setIsReportOpen(false)}
-                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {/* Modal Body (Table) */}
-            <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#2a2b66] text-white text-xs">
-                    <th className="py-3 px-4 font-bold border border-[#3a3b86]">ลำดับ</th>
-                    <th className="py-3 px-4 font-bold border border-[#3a3b86]">รหัสสินค้า / ชื่อสินค้า (SKU)</th>
-                    <th className="py-3 px-4 font-bold text-right border border-[#3a3b86]">กำไร (GP%)</th>
-                    <th className="py-3 px-4 font-bold text-right border border-[#3a3b86]">จำนวนวันคงคลัง</th>
-                    <th className="py-3 px-4 font-bold text-center border border-[#3a3b86]">สถานะ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { sku: 'SKU-001 | HARROGATE ORIGINAL 50g', gp: '65.2%', days: 45, status: 'ปกติ', statusColor: 'bg-emerald-100 text-emerald-700' },
-                    { sku: 'SKU-002 | NEOTONE SENSITIVE 30ML', gp: '58.4%', days: 60, status: 'ปกติ', statusColor: 'bg-emerald-100 text-emerald-700' },
-                    { sku: 'SKU-003 | GLYCO-A POST PEELING 3ML', gp: '55.0%', days: 30, status: 'ขายดี', statusColor: 'bg-blue-100 text-blue-700' },
-                    { sku: 'SKU-004 | UVEBLOCK SPF 50+', gp: '45.0%', days: 85, status: 'เฝ้าระวัง', statusColor: 'bg-amber-100 text-amber-700' },
-                    { sku: 'SKU-005 | GENESKIN LIFT SERUM', gp: '42.8%', days: 110, status: 'เสี่ยงค้างสต็อก', statusColor: 'bg-rose-100 text-rose-700' },
-                    { sku: 'SKU-006 | SULPHUR SOAP ORIGINAL', gp: '38.5%', days: 15, status: 'ขายดีมาก', statusColor: 'bg-blue-100 text-blue-700' },
-                    { sku: 'SKU-007 | HARROGATE SHAMPOO 250ML', gp: '35.0%', days: 25, status: 'ขายดี', statusColor: 'bg-blue-100 text-blue-700' },
-                    { sku: 'SKU-008 | NEOTONE BODY 100ml', gp: '32.1%', days: 140, status: 'ค้างสต็อก', statusColor: 'bg-rose-100 text-rose-700' },
-                    { sku: 'SKU-009 | หน้ากากอนามัย 3 ชั้น', gp: '15.0%', days: 185, status: 'ค้างสต็อกนาน', statusColor: 'bg-rose-600 text-white' },
-                    { sku: 'SKU-010 | แอลกอฮอล์เจล 500ml', gp: '12.5%', days: 142, status: 'ค้างสต็อกนาน', statusColor: 'bg-rose-600 text-white' },
-                  ].map((item, idx) => (
-                    <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 text-sm text-slate-500 font-bold border-x border-slate-200">{idx + 1}</td>
-                      <td className="py-3 px-4 text-sm text-[#2a2b66] font-bold border-x border-slate-200">{item.sku}</td>
-                      <td className="py-3 px-4 text-sm font-bold text-emerald-600 text-right border-x border-slate-200">{item.gp}</td>
-                      <td className="py-3 px-4 text-sm font-bold text-[#2a2b66] text-right border-x border-slate-200">{item.days} วัน</td>
-                      <td className="py-3 px-4 border-x border-slate-200 text-center">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-sm ${item.statusColor}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end">
-              <button 
-                onClick={() => setIsReportOpen(false)}
-                className="bg-[#2a2b66] hover:bg-[#35367a] text-white px-6 py-2 rounded-sm font-bold text-sm transition-colors"
-              >
-                ปิดหน้าต่าง
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ==========================================
-// MAIN APPLICATION COMPONENT (แผงควบคุมระบบ)
-// ==========================================
-const App = () => {
-  // เริ่มต้นเปิดระบบที่แท็บ "ภาพรวม"
-  const [activeTab, setActiveTab] = useState('ภาพรวม');
-  const [selectedPeriod, setSelectedPeriod] = useState('พ.ค. 2569');
-  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
-  const [activeChartIdx, setActiveChartIdx] = useState(5);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const dashboardRef = useRef(null);
-
-  const toggleFullscreen = () => {
-    if (!isFullscreen) {
-      if (dashboardRef.current?.requestFullscreen) dashboardRef.current.requestFullscreen().catch(() => setIsFullscreen(true));
-      else setIsFullscreen(true);
-    } else {
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => setIsFullscreen(false));
-      else setIsFullscreen(false);
+      // Update button active styles
+      tabBtns.forEach(btn => {
+        if (btn.getAttribute('onClick').includes(`'${tabName}'`)) {
+          btn.className = "tab-btn px-5 py-1.5 text-sm font-semibold rounded-sm transition-all duration-200 whitespace-nowrap bg-[#c2d3ef] text-[#2a2b66]";
+        } else {
+          btn.className = "tab-btn px-5 py-1.5 text-sm font-semibold rounded-sm transition-all duration-200 whitespace-nowrap text-slate-300 hover:text-white";
+        }
+      });
     }
-  };
 
-  useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+    // ================== DATE SELECTOR DROPDOWN ==================
+    const dateBtn = document.getElementById('date-btn');
+    const dateDropdown = document.getElementById('date-dropdown');
+    const selectedPeriodText = document.getElementById('selected-period-text');
+    const chevron = document.getElementById('date-chevron');
 
-  const periods = ['รวมทั้งปี 2569', 'พ.ค. 2569', 'เม.ย. 2569', 'มี.ค. 2569', 'ก.พ. 2569', 'ม.ค. 2569'];
+    dateBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dateDropdown.classList.toggle('hidden');
+      chevron.classList.toggle('rotate-180');
+    });
 
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-  }, []);
+    document.addEventListener('click', () => {
+      dateDropdown.classList.add('hidden');
+      chevron.classList.remove('rotate-180');
+    });
 
-  return (
-    <div 
-      ref={dashboardRef}
-      className={`bg-[#f8fafc] text-slate-800 selection:bg-[#c2d3ef] transition-all ${isFullscreen ? 'fixed inset-0 z-[9999] w-full h-full overflow-y-auto pb-12 bg-white' : 'min-h-screen pb-12'}`}
-      style={{ fontFamily: "'Prompt', sans-serif" }}
-    >
-      <div className={`max-w-[1440px] mx-auto shadow-[0_0_40px_rgba(0,0,0,0.05)] bg-white border-x border-slate-200 ${isFullscreen ? 'min-h-full' : 'min-h-screen mt-4 rounded-t-md overflow-hidden'}`}>
-        
-        {/* ================= HEADER SECTION ================= */}
-        <header className="bg-[#2a2b66] text-white px-8 py-8 md:py-10 relative overflow-hidden flex flex-col md:flex-row justify-between items-start w-full gap-6">
-          <div className="absolute right-0 top-0 w-1/3 h-full bg-[#35367a] rounded-l-full opacity-50 blur-3xl pointer-events-none"></div>
-          
-          <div className="relative z-10 flex-shrink-0">
-            <h1 className="text-4xl md:text-[42px] font-normal tracking-wide" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-              P.&O. Executive Dashboard
-            </h1>
-            <p className="text-[#c2d3ef] font-medium text-base mt-2">ภาพรวมสุขภาพทางการเงินและผลประกอบการ</p>
-          </div>
-          
-          <div className="relative z-10 flex flex-col items-end gap-4 w-full md:w-auto mt-2 md:mt-0">
-            {/* แถวบน: ปฏิทินเลือกช่วงเวลา และปุ่มนำเสนอเต็มจอ */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative">
-                <button 
-                  onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-                  className="flex items-center gap-3 bg-white text-[#2a2b66] border border-transparent hover:border-[#a6bade] px-4 h-[38px] rounded-sm transition-all shadow-sm group"
-                >
-                  <Calendar size={16} className="text-[#2a2b66]/60 group-hover:text-[#2a2b66] transition-colors" />
-                  <span className="font-bold text-sm whitespace-nowrap text-left min-w-[95px]">{selectedPeriod}</span>
-                  <ChevronDown size={14} className={`text-[#2a2b66]/60 group-hover:text-[#2a2b66] transition-all duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isDateDropdownOpen && (
-                  <div className="absolute right-0 mt-1 w-full min-w-[180px] bg-white border border-slate-200 shadow-lg py-1 z-50 rounded-sm">
-                    {periods.map(period => (
-                      <button key={period} onClick={() => { setSelectedPeriod(period); setIsDateDropdownOpen(false); }} className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between ${selectedPeriod === period ? 'bg-[#eef2f9] text-[#2a2b66] font-bold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                        {period} {selectedPeriod === period && <CheckCircle2 size={14} className="text-[#2a2b66]" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button onClick={toggleFullscreen} className="flex items-center gap-2 bg-[#c2d3ef] hover:bg-white text-[#2a2b66] px-4 h-[38px] rounded-sm transition-all shadow-sm group border border-transparent hover:border-[#a6bade]">
-                {isFullscreen ? <Minimize size={16} className="text-[#2a2b66] group-hover:scale-110 transition-transform" /> : <Presentation size={16} className="text-[#2a2b66] group-hover:scale-110 transition-transform" />}
-                <span className="font-bold text-sm whitespace-nowrap">{isFullscreen ? "ย่อหน้าจอ" : "นำเสนอ"}</span>
-              </button>
-            </div>
+    function selectPeriod(period) {
+      selectedPeriodText.innerText = period;
+      dateDropdown.classList.add('hidden');
+      chevron.classList.remove('rotate-180');
+      
+      // Update checkmark state in options
+      document.querySelectorAll('.dropdown-item').forEach(item => {
+        const checkIcon = item.querySelector('.check-icon');
+        if (item.getAttribute('data-period') === period) {
+          item.className = 'dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between bg-[#eef2f9] text-[#2a2b66] font-bold';
+          if (checkIcon) checkIcon.classList.remove('hidden');
+        } else {
+          item.className = 'dropdown-item w-full text-left px-4 py-2 text-sm font-medium transition-colors flex items-center justify-between text-slate-600 hover:bg-slate-50';
+          if (checkIcon) checkIcon.classList.add('hidden');
+        }
+      });
+    }
 
-            {/* แถวล่าง: แถบเมนูกลุ่มเปลี่ยนหน้า Tab */}
-            <div className="flex bg-[#1f204d] p-1 rounded-sm border border-[#3a3b86]">
-              {['ภาพรวม', 'สินค้า', 'กระแสเงินสด', 'คาดการณ์'].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-5 py-1.5 text-sm font-semibold rounded-sm transition-all duration-200 whitespace-nowrap ${
-                    activeTab === tab ? 'bg-[#c2d3ef] text-[#2a2b66]' : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-          </div>
-        </header>
+    // ================== FULLSCREEN PRESENTATION MODE ==================
+    const presentationBtn = document.getElementById('presentation-btn');
+    const dashboard = document.getElementById('dashboard-wrapper');
+    let isFullscreen = false;
 
-        {/* ================= SUB-HEADER STRIP ================= */}
-        <div className="bg-[#c2d3ef] text-[#2a2b66] px-8 py-2.5 font-bold text-sm border-b border-[#a6bade] flex justify-between items-center">
-          <span>สำหรับการตรวจสอบสถานะทางการเงินและประสิทธิภาพการดำเนินงานของบริษัท</span>
-          <span className="text-[10px] uppercase tracking-wider font-bold opacity-70">TAB: {activeTab}</span>
-        </div>
+    presentationBtn.addEventListener('click', () => {
+      if (!isFullscreen) {
+        if (dashboard.requestFullscreen) {
+          dashboard.requestFullscreen().catch(() => {
+            enterFallbackFullscreen();
+          });
+        } else {
+          enterFallbackFullscreen();
+        }
+      } else {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => exitFallbackFullscreen());
+        } else {
+          exitFallbackFullscreen();
+        }
+      }
+    });
 
-        {/* ================= DYNAMIC CONTENT AREA ================= */}
-        <div className="p-4 md:p-8">
-          {activeTab === 'ภาพรวม' && <SummaryTab setActiveChartIdx={setActiveChartIdx} activeChartIdx={activeChartIdx} />}
-          {activeTab === 'สินค้า' && <ProductTab />}
-          {['กระแสเงินสด', 'คาดการณ์'].includes(activeTab) && (
-            <div className="h-[400px] flex flex-col items-center justify-center text-slate-400 gap-4">
-              <Layers size={48} className="opacity-20" />
-              <p className="font-bold text-lg">กำลังพัฒนาระบบ Tab: {activeTab}</p>
-            </div>
-          )}
-        </div>
+    function enterFallbackFullscreen() {
+      isFullscreen = true;
+      dashboard.className = 'fixed inset-0 z-[9999] w-full h-full overflow-y-auto pb-12 bg-white';
+      presentationBtn.innerHTML = `
+        <i data-lucide="minimize" class="w-4 h-4 text-[#2a2b66] group-hover:scale-110 transition-transform"></i>
+        <span class="font-bold text-sm whitespace-nowrap">ย่อหน้าจอ</span>
+      `;
+      lucide.createIcons();
+    }
 
-      </div>
-    </div>
-  );
-};
+    function exitFallbackFullscreen() {
+      isFullscreen = false;
+      dashboard.className = 'max-w-[1440px] mx-auto shadow-[0_0_40px_rgba(0,0,0,0.05)] bg-white border-x border-slate-200 min-h-screen mt-4 rounded-t-md overflow-hidden transition-all';
+      presentationBtn.innerHTML = `
+        <i data-lucide="presentation" class="w-4 h-4 text-[#2a2b66] group-hover:scale-110 transition-transform"></i>
+        <span class="font-bold text-sm whitespace-nowrap">นำเสนอ</span>
+      `;
+      lucide.createIcons();
+    }
 
-export default App;
+    document.addEventListener('fullscreenchange', () => {
+      if (document.fullscreenElement) {
+        isFullscreen = true;
+        presentationBtn.innerHTML = `
+          <i data-lucide="minimize" class="w-4 h-4 text-[#2a2b66] group-hover:scale-110 transition-transform"></i>
+          <span class="font-bold text-sm whitespace-nowrap">ย่อหน้าจอ</span>
+        `;
+      } else {
+        isFullscreen = false;
+        presentationBtn.innerHTML = `
+          <i data-lucide="presentation" class="w-4 h-4 text-[#2a2b66] group-hover:scale-110 transition-transform"></i>
+          <span class="font-bold text-sm whitespace-nowrap">นำเสนอ</span>
+        `;
+      }
+      lucide.createIcons();
+    });
+
+    // ================== COMBO CHART INTERACTIVE TOOLTIPS ==================
+    function showSummaryTooltip(idx) {
+      // Hide all tooltips first
+      for (let i = 0; i < 6; i++) {
+        const el = document.getElementById(`summary-tooltip-${i}`);
+        if (el) {
+          el.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+        }
+      }
+      // Show targeted one
+      const activeEl = document.getElementById(`summary-tooltip-${idx}`);
+      if (activeEl) {
+        activeEl.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+      }
+    }
+
+    // ================== REPORT MODAL FUNCTIONS ==================
+    const reportModal = document.getElementById('report-modal');
+
+    function openReportModal() {
+      reportModal.classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+      reportModal.classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
